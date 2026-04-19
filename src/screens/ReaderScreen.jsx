@@ -4,6 +4,7 @@ import { api } from '../api.js';
 
 const BACKGROUNDS = { white:'#FFFFFF', parchment:'#FAF3E0', slate:'#1E2A3A', dark:'#0D0D0D' };
 const TEXT_COLORS  = { white:'#1D1D1F', parchment:'#3D2B1F', slate:'#E8F0F8', dark:'#F0F0F0' };
+const UNLOCK_COST = 5;
 
 function ReaderSetting({ label, children, color='var(--text)' }) {
   return (
@@ -14,31 +15,131 @@ function ReaderSetting({ label, children, color='var(--text)' }) {
   );
 }
 
-export default function ReaderScreen({ book, chapterIdx=3, dark, onToggleDark, onBack, onHome }) {
+export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, onBack, onHome, onChapterChange, user, onUserUpdate, autoAdvance=true, fontSize=17, onFontSizeChange }) {
   const [showSettings, setShowSettings] = useState(false);
   const [chapter, setChapter]           = useState(chapterIdx);
-  const [fontSize, setFontSize]         = useState(17);
+  const setFontSize = (fn) => onFontSizeChange(typeof fn === 'function' ? fn(fontSize) : fn);
   const [fontFamily, setFontFamily]     = useState('serif');
   const [bgMode, setBgMode]             = useState(dark ? 'dark' : 'white');
   const [lineH, setLineH]               = useState(1.85);
   const [chapters, setChapters]         = useState([]);
+  const [sessionToken, setSessionToken] = useState('');
   const [content, setContent]           = useState('');
-  const contentRef = useRef();
+  const [unlocking, setUnlocking]       = useState(false);
+  const [unlockError, setUnlockError]   = useState('');
+  const [linhThach, setLinhThach]       = useState(user?.linh_thach ?? 0);
+  const [advanceCountdown, setAdvanceCountdown] = useState(null); // null | 3 | 2 | 1
+  const contentRef  = useRef();
+  const advanceTimer = useRef(null);
+  const countdownInterval = useRef(null);
+
+  // Sync khi App cập nhật user.linh_thach (vd: sau khi mua ở ProfileScreen)
+  useEffect(() => {
+    if (user?.linh_thach != null) setLinhThach(user.linh_thach);
+  }, [user?.linh_thach]);
 
   useEffect(() => {
-    api.getChapters(book.id).then(setChapters).catch(console.error);
+    api.getChapters(book.id)
+      .then(data => {
+        setChapters(data.chapters ?? []);
+        setSessionToken(data.session_token ?? '');
+      })
+      .catch(console.error);
   }, [book.id]);
+
+  useEffect(() => {
+    onChapterChange?.(chapter);
+  }, [chapter]);
+
+  useEffect(() => {
+    const handler = () => onChapterChange?.(chapter);
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [chapter]);
 
   const ch = chapters[chapter] ?? chapters[0];
 
   useEffect(() => {
     if (!ch) return;
+    if (ch.unlocked === false) return; // chờ user mở khóa, không load content
     setContent('');
+    setUnlockError('');
     if (contentRef.current) contentRef.current.scrollTop = 0;
-    api.getChapterContent(book.id, ch.chapterNumber)
+    if (!sessionToken) return;
+    api.getChapterContent(book.id, ch.chapterNumber, sessionToken)
       .then(data => setContent(data.content))
       .catch(console.error);
-  }, [book.id, ch?.chapterNumber]);
+  }, [book.id, ch?.chapterNumber, ch?.unlocked, sessionToken]);
+
+  // Auto-advance: khi scroll xuống cuối trang và còn chương tiếp theo
+  const cancelAdvance = () => {
+    clearTimeout(advanceTimer.current);
+    clearInterval(countdownInterval.current);
+    advanceTimer.current = null;
+    setAdvanceCountdown(null);
+  };
+
+  useEffect(() => {
+    if (!autoAdvance || ch?.unlocked === false) return;
+    const el = contentRef.current;
+    if (!el) return;
+
+    const startAdvance = () => {
+      if (advanceTimer.current) return;
+      let count = 3;
+      setAdvanceCountdown(count);
+      countdownInterval.current = setInterval(() => {
+        count -= 1;
+        if (count <= 0) {
+          clearInterval(countdownInterval.current);
+          setAdvanceCountdown(null);
+        } else {
+          setAdvanceCountdown(count);
+        }
+      }, 1000);
+      advanceTimer.current = setTimeout(() => {
+        advanceTimer.current = null;
+        setChapter(c => Math.min(chapters.length - 1, c + 1));
+      }, 3000);
+    };
+
+    const onScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = el;
+      const atBottom = scrollHeight - scrollTop - clientHeight < 80;
+      if (atBottom && chapter < chapters.length - 1) {
+        startAdvance();
+      } else {
+        cancelAdvance();
+      }
+    };
+
+    el.addEventListener('scroll', onScroll);
+    return () => { el.removeEventListener('scroll', onScroll); cancelAdvance(); };
+  }, [autoAdvance, ch?.unlocked, chapter, chapters.length]);
+
+  const handleUnlock = async () => {
+    if (unlocking) return;
+    if (linhThach < UNLOCK_COST) {
+      setUnlockError(`Không đủ Linh Thạch. Cần ${UNLOCK_COST}, hiện có ${linhThach}.`);
+      return;
+    }
+    setUnlocking(true);
+    setUnlockError('');
+    try {
+      const res = await api.unlockChapter(book.id, ch.chapterNumber);
+      const newBalance = res.balance ?? linhThach - UNLOCK_COST;
+      setLinhThach(newBalance);
+      onUserUpdate?.({ ...user, linh_thach: newBalance });
+      // Đánh dấu chương đã mở khóa trong danh sách
+      setChapters(prev => prev.map((c, i) =>
+        i === chapter ? { ...c, unlocked: true } : c
+      ));
+    } catch (e) {
+      setUnlockError(e.message || 'Mở khóa thất bại. Thử lại.');
+    } finally {
+      setUnlocking(false);
+    }
+  };
 
   const bgColor  = BACKGROUNDS[bgMode];
   const txtColor = TEXT_COLORS[bgMode];
@@ -99,24 +200,103 @@ export default function ReaderScreen({ book, chapterIdx=3, dark, onToggleDark, o
       </div>
 
       {/* ── Content ── */}
-      <div ref={contentRef} style={{ flex:1, overflowY:'auto', background:bgColor }}>
-        <div style={{ maxWidth:700, margin:'0 auto', padding:'40px 48px 40px' }}>
-          <div style={{ fontSize:fontSize+4, fontWeight:800, color:txtColor, marginBottom:28, lineHeight:1.2, fontFamily:'var(--font-display)', letterSpacing:-0.5 }}>
-            {ch.title}
+      <div ref={contentRef} style={{ flex:1, overflowY:'auto', background:bgColor, position:'relative' }}>
+        {ch.unlocked !== false ? (
+          <div style={{ maxWidth:700, margin:'0 auto', padding:'40px 48px 40px' }}>
+            <div style={{ fontSize:fontSize+4, fontWeight:800, color:txtColor, marginBottom:28, lineHeight:1.2, fontFamily:'var(--font-display)', letterSpacing:-0.5 }}>
+              {ch.title}
+            </div>
+            {content
+              ? content.split('\n\n').filter(p => p.trim()).map((p,i) => (
+                  <p key={i} style={{
+                    marginBottom:'1.6em', textAlign:'justify',
+                    fontFamily: fontFamily==='serif' ? 'Georgia, "Times New Roman", serif' : 'var(--font-body)',
+                    fontSize, lineHeight:lineH, color:txtColor, textIndent:'2em',
+                  }}>{p.trim()}</p>
+                ))
+              : <p style={{ color:txtColor, opacity:0.4, textAlign:'center', marginTop:60 }}>Đang tải nội dung...</p>
+            }
+            <div style={{ textAlign:'center', padding:'48px 0 24px', color:txtColor, opacity:0.3, fontSize:28, letterSpacing:8 }}>· · ·</div>
+            <p style={{ textAlign:'center', fontSize:13, color:txtColor, opacity:0.4 }}>— Hết {ch.title} —</p>
+
+            {/* Auto-advance countdown banner */}
+            {autoAdvance && chapter < chapters.length - 1 && advanceCountdown !== null && (
+              <div style={{
+                margin:'24px 0 8px', padding:'14px 20px', borderRadius:14,
+                background:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'space-between',
+              }}>
+                <span style={{ fontSize:14, fontWeight:600, color:'white' }}>
+                  ⏭ Tự động chuyển chương sau {advanceCountdown}s...
+                </span>
+                <button
+                  onClick={cancelAdvance}
+                  style={{ fontSize:12, fontWeight:700, color:'white', background:'rgba(255,255,255,0.2)', border:'none', borderRadius:8, padding:'5px 12px', cursor:'pointer' }}
+                >
+                  Huỷ
+                </button>
+              </div>
+            )}
           </div>
-          {content
-            ? content.split('\n\n').filter(p => p.trim()).map((p,i) => (
-                <p key={i} style={{
-                  marginBottom:'1.6em', textAlign:'justify',
-                  fontFamily: fontFamily==='serif' ? 'Georgia, "Times New Roman", serif' : 'var(--font-body)',
-                  fontSize, lineHeight:lineH, color:txtColor, textIndent:'2em',
-                }}>{p.trim()}</p>
-              ))
-            : <p style={{ color:txtColor, opacity:0.4, textAlign:'center', marginTop:60 }}>Đang tải nội dung...</p>
-          }
-          <div style={{ textAlign:'center', padding:'48px 0 24px', color:txtColor, opacity:0.3, fontSize:28, letterSpacing:8 }}>· · ·</div>
-          <p style={{ textAlign:'center', fontSize:13, color:txtColor, opacity:0.4 }}>— Hết {ch.title} —</p>
-        </div>
+        ) : (
+          /* ── Lock overlay ── */
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%', padding:32 }}>
+            <div style={{
+              background:'var(--surface)', border:'1px solid var(--border)',
+              borderRadius:20, padding:'40px 48px', maxWidth:400, width:'100%',
+              textAlign:'center', boxShadow:'var(--shadow-lg)',
+            }}>
+              <div style={{ fontSize:48, marginBottom:16 }}>🔒</div>
+              <div style={{ fontSize:20, fontWeight:800, marginBottom:8 }}>Chương bị khóa</div>
+              <div style={{ fontSize:14, color:'var(--text2)', marginBottom:24, lineHeight:1.6 }}>
+                Mở khóa <strong>{ch.title}</strong> để đọc tiếp
+              </div>
+
+              <div style={{
+                background:'var(--surface2)', borderRadius:12, padding:'12px 20px',
+                marginBottom:24, display:'flex', justifyContent:'space-between', alignItems:'center',
+              }}>
+                <span style={{ fontSize:13, color:'var(--text2)' }}>Chi phí mở khóa</span>
+                <span style={{ fontSize:16, fontWeight:800, color:'var(--accent)' }}>💎 {UNLOCK_COST} Linh Thạch</span>
+              </div>
+
+              <div style={{
+                background:'var(--surface2)', borderRadius:12, padding:'12px 20px',
+                marginBottom:28, display:'flex', justifyContent:'space-between', alignItems:'center',
+              }}>
+                <span style={{ fontSize:13, color:'var(--text2)' }}>Số dư của bạn</span>
+                <span style={{ fontSize:16, fontWeight:700, color: linhThach >= UNLOCK_COST ? 'var(--text)' : '#ef4444' }}>
+                  💎 {linhThach} Linh Thạch
+                </span>
+              </div>
+
+              {unlockError && (
+                <div style={{ background:'#fef2f2', border:'1px solid #fecaca', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:13, color:'#dc2626' }}>
+                  {unlockError}
+                </div>
+              )}
+
+              <button
+                onClick={handleUnlock}
+                disabled={unlocking || linhThach < UNLOCK_COST}
+                style={{
+                  width:'100%', padding:'13px 0', borderRadius:12, fontSize:15, fontWeight:700,
+                  background: linhThach >= UNLOCK_COST ? 'var(--accent)' : 'var(--surface2)',
+                  color: linhThach >= UNLOCK_COST ? 'white' : 'var(--text3)',
+                  cursor: linhThach >= UNLOCK_COST ? 'pointer' : 'not-allowed',
+                  opacity: unlocking ? 0.7 : 1, transition:'all 0.2s',
+                }}
+              >
+                {unlocking ? 'Đang mở khóa...' : linhThach >= UNLOCK_COST ? '🔓 Mở khóa ngay' : 'Không đủ Linh Thạch'}
+              </button>
+
+              {linhThach < UNLOCK_COST && (
+                <div style={{ fontSize:12, color:'var(--text3)', marginTop:12 }}>
+                  Thiếu {UNLOCK_COST - linhThach} Linh Thạch · Vào Tài khoản để nạp thêm
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Bottom bar ── */}

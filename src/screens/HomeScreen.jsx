@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Icons } from '../components/Icons.jsx';
 import BookCover from '../components/BookCover.jsx';
 import { Pill, StarRating, Btn, BookCard, Section } from '../components/shared.jsx';
+import { api } from '../api.js';
 
 function SearchResultItem({ book, onNavigate }) {
   return (
@@ -42,20 +43,31 @@ function SearchResultItem({ book, onNavigate }) {
 export default function HomeScreen({ onNavigate, books = [], genres = [] }) {
   const [search, setSearch] = useState('');
   const [genre, setGenre] = useState('Tất cả');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const debounceRef = useRef(null);
 
   const featured = books[0];
 
-  const filtered = useMemo(() => {
-    let list = search
-      ? books.filter(b =>
-          b.title.toLowerCase().includes(search.toLowerCase()) ||
-          b.author.toLowerCase().includes(search.toLowerCase()) ||
-          b.genre.toLowerCase().includes(search.toLowerCase())
-        )
-      : books;
-    if (!search && genre !== 'Tất cả') list = list.filter(b => b.genre === genre);
-    return list;
-  }, [search, genre, books]);
+  // genre filter on local books list (no search active)
+  const filtered = genre === 'Tất cả' ? books : books.filter(b => b.genre === genre);
+
+  useEffect(() => {
+    if (!search.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+    setIsSearching(true);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      api.searchBooks(search.trim(), { genre })
+        .then(res => setSearchResults(res.data ?? res))
+        .catch(() => setSearchResults([]))
+        .finally(() => setIsSearching(false));
+    }, 1000);
+    return () => clearTimeout(debounceRef.current);
+  }, [search, genre]);
 
   const allGenres = ['Tất cả', ...genres];
 
@@ -100,7 +112,8 @@ export default function HomeScreen({ onNavigate, books = [], genres = [] }) {
 
           {search ? (
             <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
-              {filtered.length} kết quả cho &ldquo;<span style={{ color: 'var(--accent3)', fontWeight: 700 }}>{search}</span>&rdquo;
+              {isSearching ? 'Đang tìm kiếm...' : `${searchResults.length} kết quả cho `}
+              {!isSearching && <>&ldquo;<span style={{ color: 'var(--accent3)', fontWeight: 700 }}>{search}</span>&rdquo;</>}
             </div>
           ) : featured && (
             <>
@@ -175,19 +188,25 @@ export default function HomeScreen({ onNavigate, books = [], genres = [] }) {
       {/* Content */}
       <div style={{ padding: '32px 48px' }}>
         {search ? (
-          /* Search results — list style */
+          /* Search results — server-side */
           <div>
-            <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 8 }}>
-              {filtered.length} truyện được tìm thấy
-            </div>
-            {filtered.length === 0 ? (
+            {isSearching ? (
+              <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text3)' }}>
+                <div style={{ fontSize: 13 }}>Đang tìm kiếm...</div>
+              </div>
+            ) : searchResults.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text3)' }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
                 <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Không tìm thấy truyện nào</div>
                 <div style={{ fontSize: 13 }}>Thử từ khóa khác nhé</div>
               </div>
             ) : (
-              filtered.map(b => <SearchResultItem key={b.id} book={b} onNavigate={onNavigate} />)
+              <>
+                <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 8 }}>
+                  {searchResults.length} truyện được tìm thấy
+                </div>
+                {searchResults.map(b => <SearchResultItem key={b.id} book={b} onNavigate={onNavigate} />)}
+              </>
             )}
           </div>
         ) : (

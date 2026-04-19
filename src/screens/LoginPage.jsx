@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useGoogleLogin } from '@react-oauth/google';
 import { Icons } from '../components/Icons.jsx';
 import { Input } from '../components/shared.jsx';
+import { api } from '../api.js';
 
 export default function LoginPage({ onLogin }) {
   const [mode, setMode] = useState('login');
@@ -8,6 +10,7 @@ export default function LoginPage({ onLogin }) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const submit = () => {
     if (!email || !password) return;
@@ -15,10 +18,36 @@ export default function LoginPage({ onLogin }) {
     setTimeout(() => onLogin({ name: name || email.split('@')[0], email }), 1400);
   };
 
-  const socialLogin = () => {
-    setLoading(true);
-    setTimeout(() => onLogin({ name: 'Người dùng', email: 'user@gmail.com' }), 800);
-  };
+  const googleLogin = useGoogleLogin({
+    onSuccess: async ({ access_token }) => {
+      setLoading(true);
+      setError('');
+      try {
+        // Fetch user info from Google
+        const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${access_token}` },
+        }).then(r => r.json());
+        // Sync user with BE, receive JWT
+        const res = await api.googleLogin(info);
+        onLogin(
+          {
+            name: res.user?.name || info.name,
+            email: res.user?.email || info.email,
+            picture: res.user?.picture || info.picture || null,
+          },
+          res.access_token,
+        );
+      } catch (err) {
+        console.error('[Google Login]', err);
+        setError(`Đăng nhập Google thất bại: ${err?.message ?? err}`);
+        setLoading(false);
+      }
+    },
+    onError: (err) => {
+      console.error('[Google OAuth]', err);
+      setError('Đăng nhập Google bị huỷ hoặc lỗi.');
+    },
+  });
 
   return (
     <div style={{ display:'flex', height:'100vh', overflow:'hidden' }}>
@@ -86,19 +115,31 @@ export default function LoginPage({ onLogin }) {
           </div>
 
           {/* Social login */}
-          <div style={{ display:'flex', gap:10, marginBottom:24 }}>
-            {[{icon:'G',label:'Google',color:'#EA4335'},{icon:'🍎',label:'Apple'},{icon:'f',label:'Facebook',color:'#1877F2'}].map(p=>(
-              <button key={p.label} onClick={socialLogin} style={{
+          <div style={{ display:'flex', gap:10, marginBottom:error ? 8 : 24 }}>
+            <button onClick={() => { setError(''); googleLogin(); }} disabled={loading} style={{
+              flex:1, padding:'10px 0', borderRadius:10, border:'1.5px solid var(--border2)',
+              background:'var(--surface)', display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+              fontSize:13, fontWeight:600, color:'var(--text)', cursor:'pointer',
+              boxShadow:'var(--shadow-xs)', opacity: loading ? 0.6 : 1,
+            }}>
+              <span style={{ fontSize:15, color:'#EA4335', fontWeight:800 }}>G</span>
+              <span>Google</span>
+            </button>
+            {[{icon:'🍎',label:'Apple'},{icon:'f',label:'Facebook',color:'#1877F2'}].map(p=>(
+              <button key={p.label} disabled style={{
                 flex:1, padding:'10px 0', borderRadius:10, border:'1.5px solid var(--border2)',
                 background:'var(--surface)', display:'flex', alignItems:'center', justifyContent:'center', gap:6,
-                fontSize:13, fontWeight:600, color:'var(--text)', cursor:'pointer',
-                boxShadow:'var(--shadow-xs)',
+                fontSize:13, fontWeight:600, color:'var(--text3)', cursor:'not-allowed',
+                boxShadow:'var(--shadow-xs)', opacity:0.5,
               }}>
                 <span style={{ fontSize:15, color:p.color, fontWeight:800 }}>{p.icon}</span>
                 <span>{p.label}</span>
               </button>
             ))}
           </div>
+          {error && (
+            <div style={{ fontSize:13, color:'#F63D68', marginBottom:16, textAlign:'center' }}>{error}</div>
+          )}
 
           {/* Divider */}
           <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>

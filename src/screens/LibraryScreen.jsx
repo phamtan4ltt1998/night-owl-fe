@@ -2,7 +2,7 @@ import { useState } from 'react';
 import BookCover from '../components/BookCover.jsx';
 import { Pill, Btn, BookCard } from '../components/shared.jsx';
 
-export default function LibraryScreen({ onNavigate, books = [] }) {
+export default function LibraryScreen({ onNavigate, books = [], savedBookIds = new Set(), readProgress = {} }) {
   const [tab, setTab] = useState('reading');
 
   return (
@@ -24,7 +24,10 @@ export default function LibraryScreen({ onNavigate, books = [] }) {
       <div style={{ padding:'28px 48px' }}>
         {tab==='reading' && (
           <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:16 }}>
-            {books.slice(0,4).map((b,i)=>(
+            {books.filter(b => readProgress[b.id] != null).length === 0 && (
+              <p style={{ color:'var(--text3)', textAlign:'center', marginTop:40 }}>Chưa có truyện đang đọc.</p>
+            )}
+            {books.filter(b => readProgress[b.id] != null).slice(0,10).map((b,i)=>(
               <div key={b.id} onClick={()=>onNavigate('detail',b)} style={{
                 display:'flex', gap:20, background:'var(--surface)', borderRadius:16,
                 border:'1px solid var(--border)', padding:'20px 24px', cursor:'pointer',
@@ -41,15 +44,20 @@ export default function LibraryScreen({ onNavigate, books = [] }) {
                   </div>
                   <div style={{ fontSize:17, fontWeight:800, letterSpacing:-0.4, fontFamily:'var(--font-display)', marginBottom:4 }}>{b.title}</div>
                   <div style={{ fontSize:13, color:'var(--text2)', marginBottom:10 }}>{b.author} · {b.lastChapter}</div>
-                  <div>
-                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'var(--text3)', marginBottom:6 }}>
-                      <span>Tiến độ đọc</span>
-                      <span style={{ fontWeight:600 }}>{15+i*17}%</span>
-                    </div>
-                    <div style={{ height:4, background:'var(--surface3)', borderRadius:2 }}>
-                      <div style={{ height:'100%', borderRadius:2, background:`linear-gradient(90deg, ${b.c1}, ${b.c2})`, width:`${15+i*17}%` }}/>
-                    </div>
-                  </div>
+                  {(() => {
+                    const pct = b.chapters > 0 ? Math.round(((readProgress[b.id] ?? 0) + 1) / b.chapters * 100) : 0;
+                    return (
+                      <div>
+                        <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'var(--text3)', marginBottom:6 }}>
+                          <span>Tiến độ đọc</span>
+                          <span style={{ fontWeight:600 }}>Chương {(readProgress[b.id] ?? 0) + 1} · {pct}%</span>
+                        </div>
+                        <div style={{ height:4, background:'var(--surface3)', borderRadius:2 }}>
+                          <div style={{ height:'100%', borderRadius:2, background:`linear-gradient(90deg, ${b.c1}, ${b.c2})`, width:`${pct}%` }}/>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div style={{ display:'flex', flexDirection:'column', gap:8, alignItems:'flex-end', justifyContent:'center' }}>
                   <Btn size="sm" onClick={e=>{e.stopPropagation();onNavigate('reader',b);}}>Đọc tiếp</Btn>
@@ -63,7 +71,10 @@ export default function LibraryScreen({ onNavigate, books = [] }) {
 
         {tab==='saved' && (
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:20 }}>
-            {books.slice(0,7).map(b => <BookCard key={b.id} book={b} onNavigate={onNavigate}/>)}
+            {books.filter(b => savedBookIds.has(b.id)).length === 0
+              ? <p style={{ color:'var(--text3)', gridColumn:'1/-1', textAlign:'center', marginTop:40 }}>Chưa lưu truyện nào.</p>
+              : books.filter(b => savedBookIds.has(b.id)).map(b => <BookCard key={b.id} book={b} onNavigate={onNavigate}/>)
+            }
           </div>
         )}
 

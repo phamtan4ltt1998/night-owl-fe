@@ -30,7 +30,25 @@
       "Bash(rtk ls:*)",
       "Bash(rm -rf .git)",
       "Bash(git init:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git remote:*)",
+      "Bash(rtk gain:*)",
+      "Bash(npm install:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker-compose exec:*)",
+      "Bash(docker-compose:*)",
+      "Bash(rtk find:*)",
+      "Bash(rtk curl:*)",
+      "Bash(python3 -m json.tool)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('title'\\), '| chapters:', d.get\\('chapters'\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; books=json.load\\(sys.stdin\\); [print\\(b['id'], b['title'][:40], '| ch:', b['chapters']\\) for b in books]\")",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(rtk grep:*)",
+      "Bash(python3:*)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(.venv/bin/pip install:*)",
+      "Bash(.venv/bin/uvicorn app.main:app --port 8000)",
+      "Bash(echo \"server started PID $!\")"
     ]
   }
 }

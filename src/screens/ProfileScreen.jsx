@@ -338,13 +338,21 @@ function AccountSection({ user, onUserChange }) {
       }}>
         <div style={{ display: 'flex', gap: 24, alignItems: 'flex-end', paddingTop: 0, marginBottom: 20 }}>
           <div style={{ position: 'relative', marginTop: -24 }}>
-            <div style={{
-              width: 88, height: 88, borderRadius: 24,
-              background: 'linear-gradient(135deg, var(--accent), #4B44E8)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 36, fontWeight: 800, color: 'white', fontFamily: 'var(--font-display)',
-              border: '4px solid var(--surface)', boxShadow: 'var(--shadow-accent)',
-            }}>{(name[0] || '?').toUpperCase()}</div>
+            {user.picture ? (
+              <img src={user.picture} alt={name} referrerPolicy="no-referrer" style={{
+                width: 88, height: 88, borderRadius: 24, objectFit: 'cover',
+                border: '4px solid var(--surface)', boxShadow: 'var(--shadow-accent)',
+                display: 'block',
+              }} />
+            ) : (
+              <div style={{
+                width: 88, height: 88, borderRadius: 24,
+                background: 'linear-gradient(135deg, var(--accent), #4B44E8)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 36, fontWeight: 800, color: 'white', fontFamily: 'var(--font-display)',
+                border: '4px solid var(--surface)', boxShadow: 'var(--shadow-accent)',
+              }}>{(name[0] || '?').toUpperCase()}</div>
+            )}
           </div>
           <div style={{ paddingBottom: 4 }}>
             {editing ? (
@@ -434,24 +442,32 @@ function AccountSection({ user, onUserChange }) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export default function ProfileScreen({ user: propUser, onLogout, dark, onToggleDark, onFontSizeChange, fontSize }) {
+export default function ProfileScreen({ user: propUser, onUserUpdate, onLogout, dark, onToggleDark, onFontSizeChange, fontSize, autoAdvance, onAutoAdvanceChange, savePosition, onSavePositionChange }) {
   const [user, setUser]               = useState(propUser);
   const [activeSection, setActiveSection] = useState('account');
   const [loadingUser, setLoadingUser] = useState(false);
+
+  const setUserAndSync = useCallback((updater) => {
+    setUser(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      onUserUpdate?.(next);
+      return next;
+    });
+  }, [onUserUpdate]);
 
   // Sync fresh user data on mount
   useEffect(() => {
     if (!propUser?.email) return;
     setLoadingUser(true);
     api.getUserProfile(propUser.email)
-      .then(setUser)
+      .then(u => setUserAndSync(u))
       .catch(() => {})
       .finally(() => setLoadingUser(false));
   }, [propUser?.email]);
 
   const handleBalanceChange = useCallback((newBalance) => {
-    setUser(u => ({ ...u, linh_thach: newBalance }));
-  }, []);
+    setUserAndSync(u => ({ ...u, linh_thach: newBalance }));
+  }, [setUserAndSync]);
 
   const sections = [
     { id: 'account',       label: 'Tài khoản',  icon: '👤' },
@@ -535,7 +551,7 @@ export default function ProfileScreen({ user: propUser, onLogout, dark, onToggle
         ) : (
           <>
             {activeSection === 'account' && (
-              <AccountSection user={user} onUserChange={setUser} />
+              <AccountSection user={user} onUserChange={setUserAndSync} />
             )}
             {activeSection === 'linh-thach' && (
               <LinhThachSection user={user} onBalanceChange={handleBalanceChange} />
@@ -555,10 +571,10 @@ export default function ProfileScreen({ user: propUser, onLogout, dark, onToggle
                     </div>
                   </SettingItem>
                   <SettingItem label="Tự động chuyển chương" desc="Tự động đọc chương tiếp theo khi xong" border>
-                    <Toggle value={true} onChange={() => {}} />
+                    <Toggle value={autoAdvance} onChange={() => onAutoAdvanceChange(v => !v)} />
                   </SettingItem>
                   <SettingItem label="Lưu vị trí đọc" desc="Nhớ vị trí đọc cuối khi tắt app" border>
-                    <Toggle value={true} onChange={() => {}} />
+                    <Toggle value={savePosition} onChange={() => onSavePositionChange(v => !v)} />
                   </SettingItem>
                 </div>
               </>

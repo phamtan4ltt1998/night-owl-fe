@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api } from './api.js';
+import { api, token as authToken } from './api.js';
 import Sidebar from './Sidebar.jsx';
 import TweaksPanel from './TweaksPanel.jsx';
 import LoginPage from './screens/LoginPage.jsx';
@@ -17,14 +17,18 @@ const STORAGE_KEY = 'nightowl_web';
 export default function App() {
   const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
 
-  const [user,       setUser]       = useState(stored.user || null);
-  const [screen,     setScreen]     = useState(stored.screen || 'home');
-  const [detail,     setDetail]     = useState(null); // { book, chIdx }
-  const [dark,       setDark]       = useState(stored.dark || false);
-  const [fontSize,   setFontSize]   = useState(stored.fontSize || 17);
-  const [showTweaks, setShowTweaks] = useState(false);
-  const [books,      setBooks]      = useState([]);
-  const [genres,     setGenres]     = useState([]);
+  const [user,         setUser]         = useState(stored.user || null);
+  const [screen,       setScreen]       = useState(stored.screen || 'home');
+  const [detail,       setDetail]       = useState(null); // { book, chIdx }
+  const [dark,         setDark]         = useState(stored.dark || false);
+  const [fontSize,     setFontSize]     = useState(stored.fontSize || 17);
+  const [showTweaks,   setShowTweaks]   = useState(false);
+  const [books,        setBooks]        = useState([]);
+  const [genres,       setGenres]       = useState([]);
+  const [savedBooks,    setSavedBooks]    = useState(() => new Set(stored.savedBooks || []));
+  const [readProgress,  setReadProgress]  = useState(stored.readProgress || {});
+  const [autoAdvance,   setAutoAdvance]   = useState(stored.autoAdvance  ?? true);
+  const [savePosition,  setSavePosition]  = useState(stored.savePosition ?? true);
 
   useEffect(() => {
     api.getBooks().then(setBooks).catch(console.error);
@@ -38,8 +42,12 @@ export default function App() {
       screen: ['reader','audiobook','detail'].includes(screen) ? (stored.screen||'home') : screen,
       dark,
       fontSize,
+      savedBooks: [...savedBooks],
+      readProgress,
+      autoAdvance,
+      savePosition,
     }));
-  },[user, screen, dark, fontSize]);
+  },[user, screen, dark, fontSize, savedBooks, readProgress, autoAdvance, savePosition]);
 
   useEffect(()=>{
     const handler = e => {
@@ -50,18 +58,69 @@ export default function App() {
     return ()=>window.removeEventListener('message', handler);
   },[]);
 
+  // Auto-logout on 401
+  useEffect(()=>{
+    const handler = () => {
+      setUser(null);
+      localStorage.removeItem(STORAGE_KEY);
+    };
+    window.addEventListener('nightowl:unauthorized', handler);
+    return ()=>window.removeEventListener('nightowl:unauthorized', handler);
+  },[]);
+
   const navigate = (s, book=null, chIdx=null) => {
-    setDetail(book ? { book, chIdx } : null);
+    const resolvedChIdx = chIdx ?? (book ? (readProgress[book.id] ?? 0) : null);
+    setDetail(book ? { book, chIdx: resolvedChIdx } : null);
     setScreen(s);
   };
 
+  const toggleSave = (bookId) => {
+    setSavedBooks(prev => {
+      const next = new Set(prev);
+      next.has(bookId) ? next.delete(bookId) : next.add(bookId);
+      return next;
+    });
+  };
+
+  const saveChapterProgress = (bookId, chIdx) => {
+    if (!savePosition) return;
+    setReadProgress(prev => ({ ...prev, [bookId]: chIdx }));
+    // Sync tới DB — chapter_number = chIdx + 1 (chIdx là index 0-based)
+    if (user?.email) {
+      api.updateReadingProgress(user.email, bookId, chIdx + 1).catch(() => {});
+    }
+  };
+
+  // Load reading history từ DB khi user đăng nhập
+  useEffect(() => {
+    if (!user?.email) return;
+    api.getReadingHistory(user.email).then(history => {
+      setReadProgress(prev => {
+        const merged = { ...prev };
+        history.forEach(item => {
+          // Chỉ ghi đè nếu DB có chapter_number mới hơn (hoặc chưa có local)
+          const localChIdx = prev[item.bookId] ?? -1;
+          const dbChIdx = item.chapterNumber - 1;
+          if (dbChIdx > localChIdx) {
+            merged[item.bookId] = dbChIdx;
+          }
+        });
+        return merged;
+      });
+    }).catch(() => {});
+  }, [user?.email]);
+
   if (!user) {
-    return <LoginPage onLogin={u=>{ setUser(u); setScreen('home'); }}/>;
+    return <LoginPage onLogin={(u, jwtToken) => {
+      if (jwtToken) authToken.set(jwtToken);
+      setUser(u);
+      setScreen('home');
+    }}/>;
   }
 
   // Fullscreen screens — no sidebar
   if (screen==='reader' && detail) {
-    return <ReaderScreen book={detail.book} chapterIdx={detail.chIdx??3} dark={dark} onToggleDark={()=>setDark(d=>!d)} onBack={()=>setScreen('detail')} onHome={()=>navigate('home')}/>;
+    return <ReaderScreen book={detail.book} chapterIdx={detail.chIdx??0} dark={dark} onToggleDark={()=>setDark(d=>!d)} onBack={()=>setScreen('detail')} onHome={()=>navigate('home')} onChapterChange={chIdx=>saveChapterProgress(detail.book.id, chIdx)} user={user} onUserUpdate={u=>setUser(u)} autoAdvance={autoAdvance} fontSize={fontSize} onFontSizeChange={setFontSize}/>;
   }
 
   const activeTab = ['home','library','saved','audio','profile'].includes(screen) ? screen : 'home';
@@ -70,30 +129,36 @@ export default function App() {
     <div style={{ display:'flex', height:'100vh', overflow:'hidden' }}>
       <Sidebar
         active={activeTab}
-        onNavigate={s=>navigate(s)}
+        onNavigate={navigate}
         user={user}
         dark={dark}
         onToggleDark={()=>setDark(d=>!d)}
         onBell={()=>navigate('notifications')}
         books={books}
+        readProgress={readProgress}
       />
 
       <main style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
         {screen==='home'      && <HomeScreen onNavigate={navigate} books={books} genres={genres}/>}
-        {screen==='detail' && detail && <DetailScreen book={detail.book} onNavigate={navigate} onBack={()=>setScreen('home')}/>}
+        {screen==='detail' && detail && <DetailScreen book={detail.book} onNavigate={navigate} onBack={()=>setScreen('home')} isSaved={savedBooks.has(detail.book.id)} onToggleSave={()=>toggleSave(detail.book.id)} readProgress={readProgress}/>}
         {screen==='audiobook' && detail && <AudiobookScreen book={detail.book} onBack={()=>navigate('audio')}/>}
-        {screen==='library'   && <LibraryScreen onNavigate={navigate} books={books}/>}
-        {screen==='saved'     && <LibraryScreen onNavigate={navigate} books={books}/>}
+        {screen==='library'   && <LibraryScreen onNavigate={navigate} books={books} savedBookIds={savedBooks} readProgress={readProgress}/>}
+        {screen==='saved'     && <LibraryScreen onNavigate={navigate} books={books} savedBookIds={savedBooks} readProgress={readProgress}/>}
         {screen==='audio'     && <AudioLibraryScreen onNavigate={navigate} books={books}/>}
         {screen==='notifications' && <NotificationScreen />}
         {screen==='profile'   && (
           <ProfileScreen
             user={user}
+            onUserUpdate={u => setUser(prev => ({ ...prev, ...u }))}
             dark={dark}
             onToggleDark={()=>setDark(d=>!d)}
             fontSize={fontSize}
             onFontSizeChange={setFontSize}
-            onLogout={()=>{ setUser(null); localStorage.removeItem(STORAGE_KEY); }}
+            autoAdvance={autoAdvance}
+            onAutoAdvanceChange={setAutoAdvance}
+            savePosition={savePosition}
+            onSavePositionChange={setSavePosition}
+            onLogout={()=>{ setUser(null); authToken.clear(); localStorage.removeItem(STORAGE_KEY); }}
           />
         )}
       </main>

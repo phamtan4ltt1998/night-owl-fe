@@ -4,13 +4,13 @@ import BookCover from '../components/BookCover.jsx';
 import { Pill, StarRating, Btn } from '../components/shared.jsx';
 import { api } from '../api.js';
 
-export default function DetailScreen({ book, onNavigate, onBack }) {
+export default function DetailScreen({ book, onNavigate, onBack, isSaved=false, onToggleSave, readProgress={} }) {
   const [tab, setTab] = useState('chapters');
-  const [saved, setSaved] = useState(false);
   const [chapters, setChapters] = useState([]);
+  const lastChapterIdx = readProgress[book.id] ?? null;
 
   useEffect(() => {
-    api.getChapters(book.id).then(setChapters).catch(console.error);
+    api.getChapters(book.id).then(data => setChapters(data.chapters ?? [])).catch(console.error);
   }, [book.id]);
 
   return (
@@ -49,13 +49,13 @@ export default function DetailScreen({ book, onNavigate, onBack }) {
             <p style={{ fontSize:14, lineHeight:1.75, color:'var(--text2)', maxWidth:540, marginBottom:24 }}>{book.desc}</p>
             <div style={{ display:'flex', gap:12 }}>
               <Btn size="lg" onClick={()=>onNavigate('reader',book)}>
-                {Icons.play(15)} Đọc tiếp
+                {Icons.play(15)} {lastChapterIdx !== null ? 'Đọc tiếp' : 'Bắt đầu đọc'}
               </Btn>
               <Btn size="lg" variant="secondary" onClick={()=>onNavigate('audiobook',book)}>
                 {Icons.headphones(15)} Audiobook
               </Btn>
-              <Btn size="lg" variant="ghost" onClick={()=>setSaved(s=>!s)}>
-                {Icons.bookmark(15)} {saved?'Đã lưu':'Lưu truyện'}
+              <Btn size="lg" variant="ghost" onClick={onToggleSave}>
+                {Icons.bookmark(15)} {isSaved ? 'Đã lưu' : 'Lưu truyện'}
               </Btn>
             </div>
           </div>
@@ -96,30 +96,34 @@ export default function DetailScreen({ book, onNavigate, onBack }) {
               </div>
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
-              {chapters.map((ch,i) => (
-                <div key={ch.id} onClick={()=>onNavigate('reader',book,i)} style={{
-                  display:'flex', alignItems:'center', gap:14, padding:'12px 16px',
-                  borderRadius:10, cursor:'pointer', transition:'all 0.15s',
-                  background: i===3?'var(--accent-bg)':'transparent',
-                  border: i===3?'1px solid var(--accent-border)':'1px solid transparent',
-                }}
-                onMouseEnter={e=>{ if(i!==3) e.currentTarget.style.background='var(--surface2)'; }}
-                onMouseLeave={e=>{ if(i!==3) e.currentTarget.style.background='transparent'; }}
-                >
-                  <div style={{
-                    width:32, height:32, borderRadius:8, flexShrink:0,
-                    background: i===3?'var(--accent)':'var(--surface2)',
-                    display:'flex', alignItems:'center', justifyContent:'center',
-                    fontSize:11, fontWeight:700, color: i===3?'white':'var(--text3)',
-                  }}>{i===3 ? '▶' : ch.chapterNumber}</div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:14, fontWeight:i===3?600:400, color:!ch.free&&i>=15?'var(--text3)':'var(--text)' }}>{ch.title}</div>
-                    <div style={{ fontSize:11, color:'var(--text3)', marginTop:1 }}>{(ch.words ?? 0).toLocaleString()} từ</div>
+              {chapters.map((ch,i) => {
+                const isLast = i === lastChapterIdx;
+                return (
+                  <div key={ch.id} onClick={()=>onNavigate('reader',book,i)} style={{
+                    display:'flex', alignItems:'center', gap:14, padding:'12px 16px',
+                    borderRadius:10, cursor:'pointer', transition:'all 0.15s',
+                    background: isLast?'var(--accent-bg)':'transparent',
+                    border: isLast?'1px solid var(--accent-border)':'1px solid transparent',
+                  }}
+                  onMouseEnter={e=>{ if(!isLast) e.currentTarget.style.background='var(--surface2)'; }}
+                  onMouseLeave={e=>{ if(!isLast) e.currentTarget.style.background='transparent'; }}
+                  >
+                    <div style={{
+                      width:32, height:32, borderRadius:8, flexShrink:0,
+                      background: isLast?'var(--accent)':'var(--surface2)',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontSize:11, fontWeight:700, color: isLast?'white':'var(--text3)',
+                    }}>{isLast ? '▶' : ch.chapterNumber}</div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:11, color:'var(--text3)', fontWeight:600, marginBottom:2 }}>Chương {ch.chapterNumber}</div>
+                      <div style={{ fontSize:14, fontWeight:isLast?600:500, color:!ch.free&&i>=15?'var(--text3)':'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{ch.title}</div>
+                      <div style={{ fontSize:11, color:'var(--text3)', marginTop:1 }}>{(ch.words ?? 0).toLocaleString()} từ</div>
+                    </div>
+                    {isLast && <span style={{ fontSize:11, fontWeight:600, color:'var(--accent)', whiteSpace:'nowrap' }}>Đang đọc</span>}
+                    {!ch.free && i>=15 && <span style={{ fontSize:12, color:'var(--text3)' }}>{Icons.lock(14)}</span>}
                   </div>
-                  {i===3 && <span style={{ fontSize:11, fontWeight:600, color:'var(--accent)', whiteSpace:'nowrap' }}>Đang đọc</span>}
-                  {!ch.free && i>=15 && <span style={{ fontSize:12, color:'var(--text3)' }}>{Icons.lock(14)}</span>}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

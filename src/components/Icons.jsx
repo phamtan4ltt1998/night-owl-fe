@@ -21,6 +21,7 @@ export const Icons = {
   pause:       s => <SVG size={s} fill="currentColor" stroke="none" d={['M6 4h4v16H6z','M14 4h4v16h-4z']}/>,
   back:        s => <SVG size={s} d="M19 12H5M12 19l-7-7 7-7"/>,
   chevronRight:s => <SVG size={s} d="M9 18l6-6-6-6"/>,
+  chevronLeft: s => <SVG size={s} d="M15 18l-6-6 6-6"/>,
   chevronDown: s => <SVG size={s} d="M6 9l6 6 6-6"/>,
   moon:        s => <SVG size={s} d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>,
   sun:         s => <SVG size={s} d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42M12 17a5 5 0 100-10 5 5 0 000 10z"/>,

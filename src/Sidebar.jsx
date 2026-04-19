@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Icons } from './components/Icons.jsx';
 
 const NAV_ITEMS = [
@@ -8,101 +9,190 @@ const NAV_ITEMS = [
   { id:'profile', label:'Tài khoản', icon:s=>Icons.user(s)      },
 ];
 
-export default function Sidebar({ active, onNavigate, user, dark, onToggleDark, onBell, books = [] }) {
+const EXPANDED_W = 248;
+const COLLAPSED_W = 64;
+
+export default function Sidebar({ active, onNavigate, user, dark, onToggleDark, onBell, books = [], readProgress = {} }) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  const recentBooks = Object.keys(readProgress)
+    .map(id => books.find(b => b.id === Number(id)))
+    .filter(Boolean)
+    .slice(0, 5);
+
+  const w = collapsed ? COLLAPSED_W : EXPANDED_W;
+
   return (
     <div style={{
-      width:'var(--sidebar-w)', flexShrink:0, height:'100vh',
-      background:'var(--surface)', borderRight:'1px solid var(--border)',
-      display:'flex', flexDirection:'column', position:'relative', zIndex:20,
-      boxShadow:'var(--shadow-sm)',
+      width: w, flexShrink: 0, height: '100vh',
+      background: 'var(--surface)', borderRight: '1px solid var(--border)',
+      display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 20,
+      boxShadow: 'var(--shadow-sm)',
+      transition: 'width 0.22s cubic-bezier(.4,0,.2,1)',
+      overflow: 'hidden',
     }}>
-      {/* Logo */}
-      <div style={{ padding:'24px 20px 20px', borderBottom:'1px solid var(--border)' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+      {/* Logo + collapse toggle */}
+      <div style={{ padding: '24px 14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, overflow: 'hidden' }}>
           <div style={{
-            width:36, height:36, borderRadius:10,
-            background:'var(--grad-accent)',
-            display:'flex', alignItems:'center', justifyContent:'center', fontSize:18,
-            boxShadow:'var(--shadow-accent)',
+            width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+            background: 'var(--grad-accent)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+            boxShadow: 'var(--shadow-accent)',
           }}>🦉</div>
-          <span style={{ fontSize:18, fontWeight:800, letterSpacing:-0.5, fontFamily:'var(--font-display)' }}>NightOwl</span>
+          {!collapsed && (
+            <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: -0.5, fontFamily: 'var(--font-display)', whiteSpace: 'nowrap' }}>NightOwl</span>
+          )}
         </div>
+        <button
+          onClick={() => setCollapsed(c => !c)}
+          title={collapsed ? 'Mở rộng' : 'Thu gọn'}
+          style={{
+            flexShrink: 0, width: 28, height: 28, borderRadius: 8,
+            background: 'var(--surface2)', color: 'var(--text3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--accent-bg)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'var(--surface2)'}
+        >
+          {collapsed ? Icons.chevronRight(14) : Icons.chevronLeft(14)}
+        </button>
       </div>
 
       {/* Nav */}
-      <nav style={{ flex:1, padding:'12px', overflowY:'auto' }}>
-        <div style={{ fontSize:10, fontWeight:700, color:'var(--text3)', letterSpacing:1.2, textTransform:'uppercase', padding:'8px 10px', marginBottom:4 }}>Menu</div>
+      <nav style={{ flex: 1, padding: '12px 8px', overflowY: 'auto', overflowX: 'hidden' }}>
+        {!collapsed && (
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text3)', letterSpacing: 1.2, textTransform: 'uppercase', padding: '8px 10px', marginBottom: 4 }}>Menu</div>
+        )}
         {NAV_ITEMS.map(item => {
-          const isActive = active===item.id;
+          const isActive = active === item.id;
           return (
-            <button key={item.id} onClick={()=>onNavigate(item.id)} style={{
-              width:'100%', display:'flex', alignItems:'center', gap:10,
-              padding:'10px 12px', borderRadius:10, marginBottom:2,
-              background: isActive?'var(--accent-bg)':'transparent',
-              color: isActive?'var(--accent)':'var(--text2)',
-              fontSize:14, fontWeight: isActive?600:500,
-              transition:'all 0.15s', textAlign:'left',
-            }}
-            onMouseEnter={e=>{ if(!isActive) e.currentTarget.style.background='var(--surface2)'; }}
-            onMouseLeave={e=>{ if(!isActive) e.currentTarget.style.background='transparent'; }}
+            <button
+              key={item.id}
+              onClick={() => onNavigate(item.id)}
+              title={collapsed ? item.label : undefined}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center',
+                gap: collapsed ? 0 : 10,
+                justifyContent: collapsed ? 'center' : 'flex-start',
+                padding: collapsed ? '10px 0' : '10px 12px',
+                borderRadius: 10, marginBottom: 2,
+                background: isActive ? 'var(--accent-bg)' : 'transparent',
+                color: isActive ? 'var(--accent)' : 'var(--text2)',
+                fontSize: 14, fontWeight: isActive ? 600 : 500,
+                transition: 'all 0.15s', textAlign: 'left',
+              }}
+              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--surface2)'; }}
+              onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
             >
               {item.icon(17)}
-              {item.label}
-              {isActive && <div style={{ marginLeft:'auto', width:6, height:6, borderRadius:'50%', background:'var(--accent)' }}/>}
+              {!collapsed && item.label}
+              {!collapsed && isActive && <div style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)' }} />}
             </button>
           );
         })}
 
         {/* Reading now */}
-        <div style={{ fontSize:10, fontWeight:700, color:'var(--text3)', letterSpacing:1.2, textTransform:'uppercase', padding:'16px 10px 8px' }}>Đang đọc</div>
-        {books.slice(0,3).map(b => (
-          <button key={b.id} style={{
-            width:'100%', display:'flex', alignItems:'center', gap:10, padding:'8px 10px',
-            borderRadius:10, marginBottom:2, background:'transparent', color:'var(--text2)',
-            fontSize:13, fontWeight:400, textAlign:'left', transition:'all 0.15s',
-          }}
-          onMouseEnter={e=>e.currentTarget.style.background='var(--surface2)'}
-          onMouseLeave={e=>e.currentTarget.style.background='transparent'}
-          >
-            <div style={{ fontSize:16, flexShrink:0 }}>{b.emoji}</div>
-            <div style={{ minWidth:0 }}>
-              <div style={{ fontSize:12, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{b.title}</div>
-              <div style={{ fontSize:10, color:'var(--text3)', marginTop:1 }}>Chương {50+b.id*30}</div>
-            </div>
-          </button>
-        ))}
+        {!collapsed && recentBooks.length > 0 && (
+          <>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text3)', letterSpacing: 1.2, textTransform: 'uppercase', padding: '16px 10px 8px' }}>Đang đọc</div>
+            {recentBooks.map(b => {
+              const chIdx = readProgress[b.id] ?? 0;
+              return (
+                <button key={b.id}
+                  onClick={() => onNavigate('reader', b, chIdx)}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
+                    borderRadius: 10, marginBottom: 2, background: 'transparent', color: 'var(--text2)',
+                    fontSize: 13, fontWeight: 400, textAlign: 'left', transition: 'all 0.15s', cursor: 'pointer',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <div style={{ fontSize: 16, flexShrink: 0 }}>{b.emoji}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.title}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 1 }}>Chương {chIdx + 1}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </>
+        )}
       </nav>
 
       {/* Bottom */}
-      <div style={{ padding:'12px', borderTop:'1px solid var(--border)' }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
-          <button onClick={onToggleDark} style={{
-            display:'flex', alignItems:'center', gap:6, padding:'7px 12px',
-            borderRadius:8, background:'var(--surface2)', color:'var(--text2)',
-            fontSize:12, fontWeight:500,
-          }}>
-            {dark ? Icons.sun(14) : Icons.moon(14)}
-            {dark ? 'Sáng' : 'Tối'}
-          </button>
-          <span onClick={onBell} style={{ color:'var(--text3)', cursor:'pointer' }}>{Icons.bell(18)}</span>
-          <span style={{ color:'var(--text3)', cursor:'pointer' }}>{Icons.settings(18)}</span>
-        </div>
-        <div style={{
-          display:'flex', alignItems:'center', gap:10, padding:'8px 10px',
-          borderRadius:10, background:'var(--surface2)', cursor:'pointer',
-        }}>
-          <div style={{
-            width:30, height:30, borderRadius:8,
-            background:'var(--grad-accent)', color:'white',
-            display:'flex', alignItems:'center', justifyContent:'center',
-            fontSize:13, fontWeight:700, flexShrink:0,
-          }}>{user.name[0]?.toUpperCase()}</div>
-          <div style={{ minWidth:0, flex:1 }}>
-            <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.name}</div>
-            <div style={{ fontSize:10, color:'var(--text3)' }}>Free plan</div>
+      <div style={{ padding: '12px 8px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+        {collapsed ? (
+          /* Collapsed: icon-only bottom buttons */
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+            <button onClick={onToggleDark} title={dark ? 'Chế độ sáng' : 'Chế độ tối'} style={{
+              width: 36, height: 36, borderRadius: 8, background: 'var(--surface2)', color: 'var(--text2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+            }}>
+              {dark ? Icons.sun(15) : Icons.moon(15)}
+            </button>
+            <div
+              onClick={() => onNavigate('profile')}
+              title={user.name}
+              style={{ cursor: 'pointer', borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}
+            >
+              {user.picture ? (
+                <img src={user.picture} alt={user.name} style={{ width: 36, height: 36, objectFit: 'cover', display: 'block' }} referrerPolicy="no-referrer" />
+              ) : (
+                <div style={{
+                  width: 36, height: 36, borderRadius: 8,
+                  background: 'var(--grad-accent)', color: 'white',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 14, fontWeight: 700,
+                }}>{user.name[0]?.toUpperCase()}</div>
+              )}
+            </div>
           </div>
-          {Icons.chevronDown(14)}
-        </div>
+        ) : (
+          /* Expanded: full bottom bar */
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <button onClick={onToggleDark} style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px',
+                borderRadius: 8, background: 'var(--surface2)', color: 'var(--text2)',
+                fontSize: 12, fontWeight: 500,
+              }}>
+                {dark ? Icons.sun(14) : Icons.moon(14)}
+                {dark ? 'Sáng' : 'Tối'}
+              </button>
+              <span onClick={onBell} style={{ color: 'var(--text3)', cursor: 'pointer' }}>{Icons.bell(18)}</span>
+              <span style={{ color: 'var(--text3)', cursor: 'pointer' }}>{Icons.settings(18)}</span>
+            </div>
+            <div onClick={() => onNavigate('profile')} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
+              borderRadius: 10, background: 'var(--surface2)', cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--accent-bg)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--surface2)'}
+            >
+              {user.picture ? (
+                <img src={user.picture} alt={user.name} style={{
+                  width: 30, height: 30, borderRadius: 8, objectFit: 'cover', flexShrink: 0,
+                }} referrerPolicy="no-referrer" />
+              ) : (
+                <div style={{
+                  width: 30, height: 30, borderRadius: 8,
+                  background: 'var(--grad-accent)', color: 'white',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 13, fontWeight: 700, flexShrink: 0,
+                }}>{user.name[0]?.toUpperCase()}</div>
+              )}
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</div>
+                <div style={{ fontSize: 10, color: 'var(--text3)' }}>Free plan</div>
+              </div>
+              {Icons.chevronDown(14)}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
