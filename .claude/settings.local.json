@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__chrome-devtools__navigate_page",
+      "mcp__chrome-devtools__take_screenshot",
+      "mcp__chrome-devtools__take_snapshot",
+      "mcp__chrome-devtools__evaluate_script",
+      "Bash(bash start-server.sh)",
+      "Bash(echo \"PID=$!\")",
+      "Bash(curl -s http://localhost:8000/health)",
+      "Read(//private/tmp/**)",
+      "Bash(curl -s http://localhost:8000/books)",
+      "Bash(python3 -c \"import json,sys; books=json.load\\(sys.stdin\\); print\\(f'{len\\(books\\)} books'\\); print\\(books[0]['title']\\)\")",
+      "mcp__chrome-devtools__list_pages",
+      "mcp__chrome-devtools__new_page",
+      "mcp__chrome-devtools__list_console_messages",
+      "mcp__chrome-devtools__click",
+      "Bash(xargs -I{} sh -c 'echo \"=== {} ===\" && ls \"/Users/phamminhtan/Desktop/night-owl/night-owl/story-content/{}\" | head -5')",
+      "Bash(rm -f /Users/phamminhtan/Desktop/night-owl/night-owl/nightowl.db)",
+      "Bash(pkill -f \"uvicorn app.main\")",
+      "Bash(curl -s \"http://localhost:8000/books/1/chapters/1/content\")",
+      "Bash(python3 -c ':*)",
+      "Bash(kill 64480 64482)",
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(cp \"/Users/phamminhtan/.claude/projects/-Users-phamminhtan-Desktop-night-owl-fe/80e40592-2124-4298-a8ef-f16868e16ec3/tool-results/webfetch-1776584477250-o0grsd.bin\" /tmp/design.gz)",
+      "Bash(gunzip -c /tmp/design.gz)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(ls -lh /tmp/design_out*)",
+      "Bash(rtk git:*)",
+      "Bash(rtk ls:*)",
+      "Bash(rm -rf .git)",
+      "Bash(git init:*)",
+      "Bash(git checkout:*)"
+    ]
+  }
+}
