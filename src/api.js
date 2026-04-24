@@ -1,4 +1,4 @@
-const BASE = 'http://localhost:8000';
+const BASE = '/api';
 const TOKEN_KEY = 'nightowl_token';
 
 export const token = {
@@ -81,6 +81,7 @@ export const api = {
 
   // Auth
   googleLogin: (info) => post('/auth/google', info),
+  facebookLogin: (info) => post('/auth/facebook', info),
 
   // User / Linh Thạch
   getUserProfile: (email) => get(`/user/profile/${encodeURIComponent(email)}`),

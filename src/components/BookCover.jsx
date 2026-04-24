@@ -1,12 +1,31 @@
+import { useState } from 'react';
+
 export default function BookCover({ book, width=160, radius=14 }) {
+  const [imgError, setImgError] = useState(false);
+  const hasImage = book.cover_image && !imgError;
+
+  const containerStyle = {
+    width, height: width * 1.4, borderRadius: radius,
+    flexShrink: 0, position: 'relative', overflow: 'hidden',
+    boxShadow: `0 20px 60px ${book.c1}55, 0 4px 16px rgba(0,0,0,0.2)`,
+    background: `linear-gradient(145deg, ${book.c1}, ${book.c2})`,
+  };
+
+  if (hasImage) {
+    return (
+      <div style={containerStyle}>
+        <img
+          src={book.cover_image}
+          alt={book.title}
+          onError={() => setImgError(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div style={{
-      width, height: width*1.4, borderRadius: radius,
-      background: `linear-gradient(145deg, ${book.c1}, ${book.c2})`,
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      flexShrink: 0, position: 'relative', overflow: 'hidden',
-      boxShadow: `0 20px 60px ${book.c1}55, 0 4px 16px rgba(0,0,0,0.2)`,
-    }}>
+    <div style={{ ...containerStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{
         position: 'absolute', inset: 0, opacity: 0.15,
         backgroundImage: 'repeating-linear-gradient(45deg, white 0, white 1px, transparent 0, transparent 50%)',

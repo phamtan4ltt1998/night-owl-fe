@@ -48,7 +48,12 @@
       "Bash(.venv/bin/python:*)",
       "Bash(.venv/bin/pip install:*)",
       "Bash(.venv/bin/uvicorn app.main:app --port 8000)",
-      "Bash(echo \"server started PID $!\")"
+      "Bash(echo \"server started PID $!\")",
+      "Bash(dig *)",
+      "mcp__chrome-devtools__emulate",
+      "mcp__chrome-devtools__fill",
+      "Bash(rtk read *)",
+      "Bash(git clone *)"
     ]
   }
 }

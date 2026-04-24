@@ -123,6 +123,16 @@ a { text-decoration: none; color: inherit; }
   font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
 }
 
+.book-card-body {
+  padding: 10px 12px 12px;
+}
+
+@media (min-width: 769px) {
+  .book-card-body {
+    padding: 14px 16px 16px;
+  }
+}
+
 .glass-card {
   background: rgba(255,255,255,0.06);
   backdrop-filter: blur(16px);

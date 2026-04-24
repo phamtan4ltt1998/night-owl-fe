@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api, token as authToken } from './api.js';
+import { useIsMobile } from './hooks/useIsMobile.js';
 import Sidebar from './Sidebar.jsx';
 import TweaksPanel from './TweaksPanel.jsx';
 import LoginPage from './screens/LoginPage.jsx';
@@ -11,10 +12,12 @@ import LibraryScreen from './screens/LibraryScreen.jsx';
 import ProfileScreen from './screens/ProfileScreen.jsx';
 import AudioLibraryScreen from './screens/AudioLibraryScreen.jsx';
 import NotificationScreen from './screens/NotificationScreen.jsx';
+import ForeignScreen from './screens/ForeignScreen.jsx';
 
 const STORAGE_KEY = 'nightowl_web';
 
 export default function App() {
+  const isMobile = useIsMobile();
   const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
 
   const [user,         setUser]         = useState(stored.user || null);
@@ -123,46 +126,67 @@ export default function App() {
     return <ReaderScreen book={detail.book} chapterIdx={detail.chIdx??0} dark={dark} onToggleDark={()=>setDark(d=>!d)} onBack={()=>setScreen('detail')} onHome={()=>navigate('home')} onChapterChange={chIdx=>saveChapterProgress(detail.book.id, chIdx)} user={user} onUserUpdate={u=>setUser(u)} autoAdvance={autoAdvance} fontSize={fontSize} onFontSizeChange={setFontSize}/>;
   }
 
-  const activeTab = ['home','library','saved','audio','profile'].includes(screen) ? screen : 'home';
+  const activeTab = ['home','library','foreign','audio','profile'].includes(screen) ? screen : 'home';
+
+  const sidebar = (
+    <Sidebar
+      active={activeTab}
+      onNavigate={navigate}
+      user={user}
+      dark={dark}
+      onToggleDark={()=>setDark(d=>!d)}
+      onBell={()=>navigate('notifications')}
+      books={books}
+      readProgress={readProgress}
+      isMobile={isMobile}
+    />
+  );
+
+  const mainScreens = (
+    <>
+      {screen==='home'      && <HomeScreen onNavigate={navigate} books={books} genres={genres} readProgress={readProgress}/>}
+      {screen==='detail' && detail && <DetailScreen book={detail.book} onNavigate={navigate} onBack={()=>setScreen('home')} isSaved={savedBooks.has(detail.book.id)} onToggleSave={()=>toggleSave(detail.book.id)} readProgress={readProgress}/>}
+      {screen==='audiobook' && detail && <AudiobookScreen book={detail.book} onBack={()=>navigate('audio')}/>}
+      {screen==='library'   && <LibraryScreen onNavigate={navigate} books={books} savedBookIds={savedBooks} readProgress={readProgress}/>}
+      {screen==='foreign'   && <ForeignScreen onNavigate={navigate} books={books}/>}
+      {screen==='audio'     && <AudioLibraryScreen onNavigate={navigate} books={books}/>}
+      {screen==='notifications' && <NotificationScreen />}
+      {screen==='profile'   && (
+        <ProfileScreen
+          user={user}
+          onUserUpdate={u => setUser(prev => ({ ...prev, ...u }))}
+          dark={dark}
+          onToggleDark={()=>setDark(d=>!d)}
+          fontSize={fontSize}
+          onFontSizeChange={setFontSize}
+          autoAdvance={autoAdvance}
+          onAutoAdvanceChange={setAutoAdvance}
+          savePosition={savePosition}
+          onSavePositionChange={setSavePosition}
+          onLogout={()=>{ setUser(null); authToken.clear(); localStorage.removeItem(STORAGE_KEY); }}
+        />
+      )}
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden' }}>
+        <main style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
+          {mainScreens}
+        </main>
+        {sidebar}
+        {showTweaks && <TweaksPanel dark={dark} onToggleDark={()=>setDark(d=>!d)} onClose={()=>setShowTweaks(false)}/>}
+      </div>
+    );
+  }
 
   return (
     <div style={{ display:'flex', height:'100vh', overflow:'hidden' }}>
-      <Sidebar
-        active={activeTab}
-        onNavigate={navigate}
-        user={user}
-        dark={dark}
-        onToggleDark={()=>setDark(d=>!d)}
-        onBell={()=>navigate('notifications')}
-        books={books}
-        readProgress={readProgress}
-      />
-
+      {sidebar}
       <main style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
-        {screen==='home'      && <HomeScreen onNavigate={navigate} books={books} genres={genres}/>}
-        {screen==='detail' && detail && <DetailScreen book={detail.book} onNavigate={navigate} onBack={()=>setScreen('home')} isSaved={savedBooks.has(detail.book.id)} onToggleSave={()=>toggleSave(detail.book.id)} readProgress={readProgress}/>}
-        {screen==='audiobook' && detail && <AudiobookScreen book={detail.book} onBack={()=>navigate('audio')}/>}
-        {screen==='library'   && <LibraryScreen onNavigate={navigate} books={books} savedBookIds={savedBooks} readProgress={readProgress}/>}
-        {screen==='saved'     && <LibraryScreen onNavigate={navigate} books={books} savedBookIds={savedBooks} readProgress={readProgress}/>}
-        {screen==='audio'     && <AudioLibraryScreen onNavigate={navigate} books={books}/>}
-        {screen==='notifications' && <NotificationScreen />}
-        {screen==='profile'   && (
-          <ProfileScreen
-            user={user}
-            onUserUpdate={u => setUser(prev => ({ ...prev, ...u }))}
-            dark={dark}
-            onToggleDark={()=>setDark(d=>!d)}
-            fontSize={fontSize}
-            onFontSizeChange={setFontSize}
-            autoAdvance={autoAdvance}
-            onAutoAdvanceChange={setAutoAdvance}
-            savePosition={savePosition}
-            onSavePositionChange={setSavePosition}
-            onLogout={()=>{ setUser(null); authToken.clear(); localStorage.removeItem(STORAGE_KEY); }}
-          />
-        )}
+        {mainScreens}
       </main>
-
       {showTweaks && <TweaksPanel dark={dark} onToggleDark={()=>setDark(d=>!d)} onClose={()=>setShowTweaks(false)}/>}
     </div>
   );

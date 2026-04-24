@@ -38,4 +38,5 @@ export const Icons = {
   skipBack:    s => <SVG size={s} fill="currentColor" stroke="none" d="M18 4L8 12l10 8V4zM5 4H7v16H5z"/>,
   repeat:      s => <SVG size={s} d={['M17 1l4 4-4 4','M3 11V9a4 4 0 014-4h14','M7 23l-4-4 4-4','M21 13v2a4 4 0 01-4 4H3']}/>,
   shuffle:     s => <SVG size={s} d={['M16 3h5v5','M4 20L21 3','M21 16v5h-5','M15 15l6 6','M4 4l5 5']}/>,
+  globe:       s => <SVG size={s} d={['M12 2a10 10 0 100 20A10 10 0 0012 2z','M2 12h20','M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z']}/>,
 };

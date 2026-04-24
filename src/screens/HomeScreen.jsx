@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Icons } from '../components/Icons.jsx';
+import { Pill, StarRating, BookCard, Section } from '../components/shared.jsx';
 import BookCover from '../components/BookCover.jsx';
-import { Pill, StarRating, Btn, BookCard, Section } from '../components/shared.jsx';
 import { api } from '../api.js';
+import { useIsMobile } from '../hooks/useIsMobile.js';
 
 function SearchResultItem({ book, onNavigate }) {
   return (
@@ -40,12 +41,14 @@ function SearchResultItem({ book, onNavigate }) {
   );
 }
 
-export default function HomeScreen({ onNavigate, books = [], genres = [] }) {
+export default function HomeScreen({ onNavigate, books = [], genres = [], readProgress = {} }) {
+  const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
   const [genre, setGenre] = useState('Tất cả');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const debounceRef = useRef(null);
+  const px = isMobile ? 16 : 48;
 
   const featured = books[0];
 
@@ -74,23 +77,23 @@ export default function HomeScreen({ onNavigate, books = [], genres = [] }) {
   return (
     <div style={{ height: '100%', overflowY: 'auto', paddingBottom: 40 }}>
       {/* Hero */}
-      <div style={{ position: 'relative', overflow: 'hidden', background: 'var(--grad-hero)', padding: '52px 48px 48px' }}>
+      <div style={{ position: 'relative', overflow: 'hidden', background: 'var(--grad-hero)', padding: isMobile ? '28px 16px 24px' : '52px 48px 48px' }}>
         <div className="mesh-orb" style={{ width: 500, height: 500, top: -150, right: -80, background: '#635BFF', opacity: 0.4 }} />
         <div className="mesh-orb" style={{ width: 300, height: 300, bottom: -100, left: 200, background: '#0EA5E9', opacity: 0.2 }} />
 
         <div style={{ position: 'relative', zIndex: 1, maxWidth: 700 }}>
           {/* Search bar */}
-          <div style={{ position: 'relative', marginBottom: search ? 16 : 32 }}>
+          <div style={{ position: 'relative', marginBottom: search ? 16 : (isMobile ? 20 : 32) }}>
             <div style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.5)', display: 'flex' }}>
               {Icons.search(18)}
             </div>
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Tìm kiếm truyện, tác giả, thể loại..."
+              placeholder="Tìm kiếm truyện, tác giả..."
               style={{
-                width: '100%', maxWidth: 560, padding: '14px 44px 14px 48px',
-                borderRadius: 12, fontSize: 15,
+                width: '100%', padding: '13px 44px 13px 48px',
+                borderRadius: 12, fontSize: isMobile ? 14 : 15,
                 background: 'rgba(255,255,255,0.12)', border: '1.5px solid rgba(255,255,255,0.2)',
                 backdropFilter: 'blur(20px)', outline: 'none',
                 color: 'white', boxSizing: 'border-box',
@@ -118,39 +121,67 @@ export default function HomeScreen({ onNavigate, books = [], genres = [] }) {
           ) : featured && (
             <>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 }}>Nổi bật hôm nay</div>
-              <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }}>
-                <BookCover book={featured} width={140} radius={16} />
-                <div style={{ flex: 1, paddingTop: 8 }}>
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-                    {featured.tags.map(t => <Pill key={t} label={t} />)}
-                  </div>
-                  <h2 style={{ fontSize: 36, fontWeight: 800, color: 'white', letterSpacing: -1.5, lineHeight: 1.1, fontFamily: 'var(--font-display)', marginBottom: 10 }}>
-                    {featured.title}
-                  </h2>
-                  <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', lineHeight: 1.7, marginBottom: 16, maxWidth: 440 }}>
-                    {featured.desc?.slice(0, 140)}...
-                  </p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20 }}>
-                    <StarRating rating={featured.rating} size={14} />
-                    <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>👁 {featured.reads} lượt đọc</span>
-                    <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>📖 {featured.chapters} chương</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <button onClick={() => onNavigate('reader', featured)} style={{
-                      padding: '11px 24px', borderRadius: 10, fontSize: 14, fontWeight: 700,
-                      background: 'white', color: 'var(--accent)', cursor: 'pointer',
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: 8,
-                    }}>
-                      {Icons.play(14)} Đọc ngay
-                    </button>
-                    <button onClick={() => onNavigate('detail', featured)} style={{
-                      padding: '11px 24px', borderRadius: 10, fontSize: 14, fontWeight: 600,
-                      background: 'rgba(255,255,255,0.12)', color: 'white', cursor: 'pointer',
-                      border: '1px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)',
-                    }}>Xem chi tiết</button>
+              {isMobile ? (
+                <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                  <BookCover book={featured} width={90} radius={12} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap' }}>
+                      {featured.tags.slice(0,2).map(t => <Pill key={t} label={t} />)}
+                    </div>
+                    <h2 style={{ fontSize: 20, fontWeight: 800, color: 'white', letterSpacing: -0.8, lineHeight: 1.2, fontFamily: 'var(--font-display)', marginBottom: 10 }}>
+                      {featured.title}
+                    </h2>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button onClick={() => onNavigate('reader', featured)} style={{
+                        padding: '9px 18px', borderRadius: 10, fontSize: 13, fontWeight: 700,
+                        background: 'white', color: 'var(--accent)', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 6,
+                      }}>
+                        {Icons.play(13)} Đọc ngay
+                      </button>
+                      <button onClick={() => onNavigate('detail', featured)} style={{
+                        padding: '9px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                        background: 'rgba(255,255,255,0.12)', color: 'white', cursor: 'pointer',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                      }}>Chi tiết</button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }}>
+                  <BookCover book={featured} width={140} radius={16} />
+                  <div style={{ flex: 1, paddingTop: 8 }}>
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+                      {featured.tags.map(t => <Pill key={t} label={t} />)}
+                    </div>
+                    <h2 style={{ fontSize: 36, fontWeight: 800, color: 'white', letterSpacing: -1.5, lineHeight: 1.1, fontFamily: 'var(--font-display)', marginBottom: 10 }}>
+                      {featured.title}
+                    </h2>
+                    <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', lineHeight: 1.7, marginBottom: 16, maxWidth: 440 }}>
+                      {featured.desc?.slice(0, 140)}...
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20 }}>
+                      <StarRating rating={featured.rating} size={14} />
+                      <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>👁 {featured.reads} lượt đọc</span>
+                      <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>📖 {featured.chapters} chương</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button onClick={() => onNavigate('reader', featured)} style={{
+                        padding: '11px 24px', borderRadius: 10, fontSize: 14, fontWeight: 700,
+                        background: 'white', color: 'var(--accent)', cursor: 'pointer',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: 8,
+                      }}>
+                        {Icons.play(14)} Đọc ngay
+                      </button>
+                      <button onClick={() => onNavigate('detail', featured)} style={{
+                        padding: '11px 24px', borderRadius: 10, fontSize: 14, fontWeight: 600,
+                        background: 'rgba(255,255,255,0.12)', color: 'white', cursor: 'pointer',
+                        border: '1px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)',
+                      }}>Xem chi tiết</button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -158,14 +189,14 @@ export default function HomeScreen({ onNavigate, books = [], genres = [] }) {
 
       {/* Quick genre filter — always visible */}
       <div style={{
-        padding: '0 48px',
+        padding: `0 ${px}px`,
         borderBottom: '1px solid var(--border)',
         background: 'var(--surface)',
         position: 'sticky', top: 0, zIndex: 10,
         boxShadow: 'var(--shadow-sm)',
       }}>
         <div style={{
-          display: 'flex', gap: 4, overflowX: 'auto', paddingTop: 14, paddingBottom: 14,
+          display: 'flex', gap: 4, overflowX: 'auto', paddingTop: 12, paddingBottom: 12,
           scrollbarWidth: 'none', msOverflowStyle: 'none',
         }}>
           {allGenres.map(g => (
@@ -173,7 +204,7 @@ export default function HomeScreen({ onNavigate, books = [], genres = [] }) {
               key={g}
               onClick={() => { setGenre(g); setSearch(''); }}
               style={{
-                flexShrink: 0, padding: '7px 18px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+                flexShrink: 0, padding: isMobile ? '6px 14px' : '7px 18px', borderRadius: 20, fontSize: 13, fontWeight: 600,
                 background: genre === g && !search ? 'var(--accent)' : 'transparent',
                 color: genre === g && !search ? 'white' : 'var(--text2)',
                 border: genre === g && !search ? 'none' : '1.5px solid var(--border2)',
@@ -186,7 +217,7 @@ export default function HomeScreen({ onNavigate, books = [], genres = [] }) {
       </div>
 
       {/* Content */}
-      <div style={{ padding: '32px 48px' }}>
+      <div style={{ padding: isMobile ? '20px 16px' : '32px 48px' }}>
         {search ? (
           /* Search results — server-side */
           <div>
@@ -211,42 +242,6 @@ export default function HomeScreen({ onNavigate, books = [], genres = [] }) {
           </div>
         ) : (
           <>
-            {/* Recently reading */}
-            <Section title="Đang đọc" action="Xem tất cả" onAction={() => onNavigate('library')}>
-              <div style={{ display: 'flex', gap: 20, overflowX: 'auto', paddingBottom: 8, scrollbarWidth: 'none' }}>
-                {books.slice(0, 5).map((b, i) => (
-                  <div key={b.id} onClick={() => onNavigate('reader', b)} style={{
-                    flexShrink: 0, width: 200, cursor: 'pointer',
-                    background: 'var(--surface)', borderRadius: 16, overflow: 'hidden',
-                    border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)',
-                    transition: 'all 0.2s',
-                  }}
-                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}
-                  >
-                    <div style={{ height: 6, background: `linear-gradient(90deg, ${b.c1}, ${b.c2})`, opacity: 0.8 }} />
-                    <div style={{ padding: '14px 16px' }}>
-                      <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-                        <div style={{ fontSize: 28, flexShrink: 0 }}>{b.emoji}</div>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3, marginBottom: 2 }}>{b.title}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text3)' }}>{b.author}</div>
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 8 }}>{b.lastChapter}</div>
-                      <div style={{ height: 3, background: 'var(--surface3)', borderRadius: 2, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', borderRadius: 2, background: `linear-gradient(90deg, ${b.c1}, ${b.c2})`, width: `${15 + i * 14}%` }} />
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                        <span style={{ fontSize: 10, color: 'var(--text3)' }}>{15 + i * 14}% hoàn thành</span>
-                        <span style={{ fontSize: 10, color: 'var(--text3)' }}>{b.updated}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Section>
-
             {/* Book grid filtered by genre */}
             <Section
               title={genre === 'Tất cả' ? 'Tất cả truyện' : genre}
@@ -258,7 +253,7 @@ export default function HomeScreen({ onNavigate, books = [], genres = [] }) {
                   <div style={{ fontSize: 14 }}>Chưa có truyện thể loại này</div>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 20 }}>
+                <div style={{ display: isMobile ? 'flex' : 'grid', flexDirection: isMobile ? 'column' : undefined, gridTemplateColumns: isMobile ? undefined : 'repeat(auto-fill, minmax(200px, 1fr))', gap: isMobile ? 0 : 20 }}>
                   {filtered.map(b => <BookCard key={b.id} book={b} onNavigate={onNavigate} />)}
                 </div>
               )}

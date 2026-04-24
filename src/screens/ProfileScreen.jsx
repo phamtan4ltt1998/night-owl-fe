@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Icons } from '../components/Icons.jsx';
 import { Btn, Toggle } from '../components/shared.jsx';
 import { api } from '../api.js';
+import { useIsMobile } from '../hooks/useIsMobile.js';
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -393,7 +394,7 @@ function AccountSection({ user, onUserChange }) {
       </div>
 
       {/* Stats grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12, marginBottom: 28 }}>
         {[
           { icon: '💎', val: fmt(user?.linh_thach ?? 0), label: 'Linh Thạch', accent: true },
           { icon: '🔥', val: user?.streak ?? 0, label: 'Ngày streak' },
@@ -443,6 +444,7 @@ function AccountSection({ user, onUserChange }) {
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function ProfileScreen({ user: propUser, onUserUpdate, onLogout, dark, onToggleDark, onFontSizeChange, fontSize, autoAdvance, onAutoAdvanceChange, savePosition, onSavePositionChange }) {
+  const isMobile = useIsMobile();
   const [user, setUser]               = useState(propUser);
   const [activeSection, setActiveSection] = useState('account');
   const [loadingUser, setLoadingUser] = useState(false);
@@ -475,6 +477,68 @@ export default function ProfileScreen({ user: propUser, onUserUpdate, onLogout, 
     { id: 'reading',       label: 'Đọc sách',   icon: '📖' },
   ];
 
+  const px = isMobile ? 16 : 48;
+
+  if (isMobile) {
+    return (
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Top tabs */}
+        <div style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', overflowX: 'auto', scrollbarWidth: 'none' }}>
+            {sections.map(s => (
+              <button key={s.id} onClick={() => setActiveSection(s.id)} style={{
+                flexShrink: 0, padding: '12px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: 'none',
+                color: activeSection === s.id ? 'var(--accent)' : 'var(--text2)',
+                borderBottom: activeSection === s.id ? '2px solid var(--accent)' : '2px solid transparent',
+                marginBottom: -1, display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+                <span>{s.icon}</span>{s.label}
+              </button>
+            ))}
+            <button onClick={onLogout} style={{
+              flexShrink: 0, marginLeft: 'auto', padding: '12px 16px', fontSize: 13, fontWeight: 600,
+              color: '#EF4444', background: 'none', cursor: 'pointer',
+            }}>⎋ Đăng xuất</button>
+          </div>
+        </div>
+        {/* Content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 40px' }}>
+          {loadingUser ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: 'var(--text3)' }}>Đang tải...</div>
+          ) : (
+            <>
+              {activeSection === 'account' && <AccountSection user={user} onUserChange={setUserAndSync} />}
+              {activeSection === 'linh-thach' && <LinhThachSection user={user} onBalanceChange={handleBalanceChange} />}
+              {activeSection === 'reading' && (
+                <>
+                  <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: -0.8, fontFamily: 'var(--font-display)', marginBottom: 20 }}>Cài đặt đọc sách</h1>
+                  <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', overflow: 'hidden' }}>
+                    <SettingItem label="Chế độ tối" desc="Bảo vệ mắt ban đêm">
+                      <Toggle value={dark} onChange={onToggleDark} />
+                    </SettingItem>
+                    <SettingItem label="Cỡ chữ" desc={`${fontSize}px`} border>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <button onClick={() => onFontSizeChange(Math.max(13, fontSize - 1))} style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border2)', fontSize: 18, cursor: 'pointer', color: 'var(--text)' }}>−</button>
+                        <span style={{ fontSize: 15, fontWeight: 700, minWidth: 28, textAlign: 'center' }}>{fontSize}</span>
+                        <button onClick={() => onFontSizeChange(Math.min(26, fontSize + 1))} style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border2)', fontSize: 18, cursor: 'pointer', color: 'var(--text)' }}>+</button>
+                      </div>
+                    </SettingItem>
+                    <SettingItem label="Tự động chuyển chương" border>
+                      <Toggle value={autoAdvance} onChange={() => onAutoAdvanceChange(v => !v)} />
+                    </SettingItem>
+                    <SettingItem label="Lưu vị trí đọc" border>
+                      <Toggle value={savePosition} onChange={() => onSavePositionChange(v => !v)} />
+                    </SettingItem>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ height: '100%', display: 'flex', overflow: 'hidden' }}>
       {/* Sidebar */}
@@ -500,7 +564,6 @@ export default function ProfileScreen({ user: propUser, onUserUpdate, onLogout, 
               <div style={{ fontSize: 11, color: 'var(--text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.email}</div>
             </div>
           </div>
-          {/* Linh Thạch quick view */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '8px 12px', borderRadius: 10,

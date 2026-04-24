@@ -4,7 +4,7 @@ import { Icons } from './components/Icons.jsx';
 const NAV_ITEMS = [
   { id:'home',    label:'Khám phá',  icon:s=>Icons.compass(s)   },
   { id:'library', label:'Thư viện',  icon:s=>Icons.library(s)   },
-  { id:'saved',   label:'Đã lưu',    icon:s=>Icons.bookmark(s)  },
+  { id:'foreign',  label:'Nước ngoài', icon:s=>Icons.globe(s)     },
   { id:'audio',   label:'Audiobook', icon:s=>Icons.headphones(s) },
   { id:'profile', label:'Tài khoản', icon:s=>Icons.user(s)      },
 ];
@@ -12,8 +12,38 @@ const NAV_ITEMS = [
 const EXPANDED_W = 248;
 const COLLAPSED_W = 64;
 
-export default function Sidebar({ active, onNavigate, user, dark, onToggleDark, onBell, books = [], readProgress = {} }) {
+export default function Sidebar({ active, onNavigate, user, dark, onToggleDark, onBell, books = [], readProgress = {}, isMobile = false }) {
   const [collapsed, setCollapsed] = useState(false);
+
+  if (isMobile) {
+    return (
+      <nav style={{
+        flexShrink: 0, display: 'flex', alignItems: 'stretch',
+        height: 60, background: 'var(--surface)', borderTop: '1px solid var(--border)',
+        boxShadow: '0 -2px 12px rgba(0,0,0,0.06)',
+      }}>
+        {NAV_ITEMS.map(item => {
+          const isActive = active === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => onNavigate(item.id)}
+              style={{
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                gap: 3, background: 'none', border: 'none', cursor: 'pointer',
+                color: isActive ? 'var(--accent)' : 'var(--text3)',
+                fontSize: 10, fontWeight: isActive ? 700 : 500,
+                transition: 'color 0.15s',
+              }}
+            >
+              {item.icon(isActive ? 22 : 20)}
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+    );
+  }
 
   const recentBooks = Object.keys(readProgress)
     .map(id => books.find(b => b.id === Number(id)))

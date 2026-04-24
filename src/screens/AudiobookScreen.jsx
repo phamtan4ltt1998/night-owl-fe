@@ -86,13 +86,16 @@ export default function AudiobookScreen({ book, onBack }) {
   const [bufferedRanges, setBuffered]     = useState([]);
   const [shuffle, setShuffle]             = useState(false);
   const [repeat, setRepeat]               = useState(false);
+  const [coverError, setCoverError]       = useState(false);
 
   const audioRef   = useRef(null);
   const barRef     = useRef(null);
   const pollRef    = useRef(null);
 
   useEffect(() => {
-    api.getChapters(book.id).then(setChapters).catch(console.error);
+    api.getChapters(book.id)
+      .then(data => setChapters(data.chapters ?? []))
+      .catch(console.error);
   }, [book.id]);
 
   // Sync volume/speed to audio element
@@ -177,10 +180,9 @@ export default function AudiobookScreen({ book, onBack }) {
   const handleEnded = () => {
     if (repeat && audioRef.current) {
       audioRef.current.currentTime = 0;
-      audioRef.current.play();
+      audioRef.current.play().catch(() => setPlaying(false));
       return;
     }
-    setPlaying(false);
     // Auto-advance to next chapter
     if (selectedChapter && chapters.length > 0) {
       const idx = chapters.findIndex(c => c.id === selectedChapter.id);
@@ -223,8 +225,11 @@ export default function AudiobookScreen({ book, onBack }) {
 
   const togglePlay = () => {
     if (!audioRef.current || audioState !== 'ready') return;
-    if (playing) { audioRef.current.pause(); setPlaying(false); }
-    else { audioRef.current.play(); setPlaying(true); }
+    if (playing) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play().catch(() => setPlaying(false));
+    }
   };
 
   const seek = (e) => {
@@ -249,6 +254,8 @@ export default function AudiobookScreen({ book, onBack }) {
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleEnded}
         onProgress={handleProgress}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
         style={{ display: 'none' }}
       />
 
@@ -280,14 +287,25 @@ export default function AudiobookScreen({ book, onBack }) {
             <div style={{
               width: 220, height: 308, borderRadius: 20,
               background: `linear-gradient(145deg, ${book.c1}, ${book.c2})`,
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               boxShadow: `0 32px 80px ${book.c1}55, 0 8px 24px rgba(0,0,0,0.25)`,
               transform: playing ? 'scale(1.03)' : 'scale(1)', transition: 'transform 0.5s ease',
               position: 'relative', overflow: 'hidden',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             }}>
-              <div style={{ position: 'absolute', inset: 0, opacity: 0.1, backgroundImage: 'repeating-linear-gradient(45deg,white 0,white 1px,transparent 0,transparent 50%)', backgroundSize: '12px 12px' }} />
-              <div style={{ fontSize: 72, marginBottom: 12, filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.3))' }}>{book.emoji}</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: 'rgba(255,255,255,0.95)', textAlign: 'center', padding: '0 16px', lineHeight: 1.3, fontFamily: 'var(--font-display)' }}>{book.title}</div>
+              {book.cover_image && !coverError ? (
+                <img
+                  src={book.cover_image}
+                  alt={book.title}
+                  onError={() => setCoverError(true)}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', borderRadius: 20 }}
+                />
+              ) : (
+                <>
+                  <div style={{ position: 'absolute', inset: 0, opacity: 0.1, backgroundImage: 'repeating-linear-gradient(45deg,white 0,white 1px,transparent 0,transparent 50%)', backgroundSize: '12px 12px' }} />
+                  <div style={{ fontSize: 72, marginBottom: 12, filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.3))' }}>{book.emoji}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: 'rgba(255,255,255,0.95)', textAlign: 'center', padding: '0 16px', lineHeight: 1.3, fontFamily: 'var(--font-display)' }}>{book.title}</div>
+                </>
+              )}
             </div>
           </div>
 

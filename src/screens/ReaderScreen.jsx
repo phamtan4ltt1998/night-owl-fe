@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Icons } from '../components/Icons.jsx';
 import { api } from '../api.js';
+import { useIsMobile } from '../hooks/useIsMobile.js';
 
 const BACKGROUNDS = { white:'#FFFFFF', parchment:'#FAF3E0', slate:'#1E2A3A', dark:'#0D0D0D' };
 const TEXT_COLORS  = { white:'#1D1D1F', parchment:'#3D2B1F', slate:'#E8F0F8', dark:'#F0F0F0' };
@@ -16,6 +17,7 @@ function ReaderSetting({ label, children, color='var(--text)' }) {
 }
 
 export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, onBack, onHome, onChapterChange, user, onUserUpdate, autoAdvance=true, fontSize=17, onFontSizeChange }) {
+  const isMobile = useIsMobile();
   const [showSettings, setShowSettings] = useState(false);
   const [chapter, setChapter]           = useState(chapterIdx);
   const setFontSize = (fn) => onFontSizeChange(typeof fn === 'function' ? fn(fontSize) : fn);
@@ -23,7 +25,7 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
   const [bgMode, setBgMode]             = useState(dark ? 'dark' : 'white');
   const [lineH, setLineH]               = useState(1.85);
   const [chapters, setChapters]         = useState([]);
-  const [sessionToken, setSessionToken] = useState('');
+  const [sessionToken, setSessionToken] = useState(null); // null = not yet fetched, '' = disabled by server
   const [content, setContent]           = useState('');
   const [unlocking, setUnlocking]       = useState(false);
   const [unlockError, setUnlockError]   = useState('');
@@ -32,6 +34,7 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
   const contentRef  = useRef();
   const advanceTimer = useRef(null);
   const countdownInterval = useRef(null);
+  const advanceCancelled = useRef(false);
 
   // Sync khi App cập nhật user.linh_thach (vd: sau khi mua ở ProfileScreen)
   useEffect(() => {
@@ -65,17 +68,18 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
     setContent('');
     setUnlockError('');
     if (contentRef.current) contentRef.current.scrollTop = 0;
-    if (!sessionToken) return;
+    if (sessionToken === null) return; // still waiting for getChapters
     api.getChapterContent(book.id, ch.chapterNumber, sessionToken)
       .then(data => setContent(data.content))
       .catch(console.error);
   }, [book.id, ch?.chapterNumber, ch?.unlocked, sessionToken]);
 
   // Auto-advance: khi scroll xuống cuối trang và còn chương tiếp theo
-  const cancelAdvance = () => {
+  const cancelAdvance = (userInitiated = false) => {
     clearTimeout(advanceTimer.current);
     clearInterval(countdownInterval.current);
     advanceTimer.current = null;
+    if (userInitiated) advanceCancelled.current = true;
     setAdvanceCountdown(null);
   };
 
@@ -107,8 +111,9 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
       const { scrollTop, scrollHeight, clientHeight } = el;
       const atBottom = scrollHeight - scrollTop - clientHeight < 80;
       if (atBottom && chapter < chapters.length - 1) {
-        startAdvance();
+        if (!advanceCancelled.current) startAdvance();
       } else {
+        advanceCancelled.current = false; // reset when user scrolls away from bottom
         cancelAdvance();
       }
     };
@@ -166,8 +171,8 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
 
       {/* ── Top bar ── */}
       <div style={{
-        flexShrink:0, display:'flex', alignItems:'center', gap:10,
-        padding:'0 20px', height:56,
+        flexShrink:0, display:'flex', alignItems:'center', gap: isMobile ? 6 : 10,
+        padding: isMobile ? '0 10px' : '0 20px', height:56,
         background:barBg, borderBottom:barBorder,
         position:'relative', zIndex:30,
       }}>
@@ -202,7 +207,7 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
       {/* ── Content ── */}
       <div ref={contentRef} style={{ flex:1, overflowY:'auto', background:bgColor, position:'relative' }}>
         {ch.unlocked !== false ? (
-          <div style={{ maxWidth:700, margin:'0 auto', padding:'40px 48px 40px' }}>
+          <div style={{ maxWidth:700, margin:'0 auto', padding: isMobile ? '24px 16px 40px' : '40px 48px 40px' }}>
             <div style={{ fontSize:fontSize+4, fontWeight:800, color:txtColor, marginBottom:28, lineHeight:1.2, fontFamily:'var(--font-display)', letterSpacing:-0.5 }}>
               {ch.title}
             </div>
@@ -229,7 +234,7 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
                   ⏭ Tự động chuyển chương sau {advanceCountdown}s...
                 </span>
                 <button
-                  onClick={cancelAdvance}
+                  onClick={() => cancelAdvance(true)}
                   style={{ fontSize:12, fontWeight:700, color:'white', background:'rgba(255,255,255,0.2)', border:'none', borderRadius:8, padding:'5px 12px', cursor:'pointer' }}
                 >
                   Huỷ
@@ -327,11 +332,15 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
       {/* ── Settings drawer ── */}
       {showSettings && (
         <div style={{
-          position:'fixed', right:0, top:56, bottom:58, width:280, zIndex:40,
+          position:'fixed',
+          right:0, top:56, bottom:58,
+          width: isMobile ? '100%' : 280,
+          zIndex:40,
           background: isDark ? 'rgba(12,12,20,0.97)' : 'rgba(255,255,255,0.98)',
-          backdropFilter:'blur(24px)', borderLeft:barBorder,
+          backdropFilter:'blur(24px)', borderLeft: isMobile ? 'none' : barBorder,
+          borderTop: isMobile ? barBorder : 'none',
           padding:'20px 18px', overflowY:'auto',
-          boxShadow:'-4px 0 24px rgba(0,0,0,0.12)',
+          boxShadow: isMobile ? '0 -4px 24px rgba(0,0,0,0.12)' : '-4px 0 24px rgba(0,0,0,0.12)',
         }}>
           <div style={{ fontWeight:800, fontSize:15, marginBottom:20, color:txtColor }}>Cài đặt đọc</div>
 
