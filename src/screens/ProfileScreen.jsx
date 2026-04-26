@@ -339,8 +339,8 @@ function AccountSection({ user, onUserChange }) {
       }}>
         <div style={{ display: 'flex', gap: 24, alignItems: 'flex-end', paddingTop: 0, marginBottom: 20 }}>
           <div style={{ position: 'relative', marginTop: -24 }}>
-            {user.picture ? (
-              <img src={user.picture} alt={name} referrerPolicy="no-referrer" style={{
+            {true ? (
+              <img src={user.picture || '/logo_main.png'} alt={name} referrerPolicy="no-referrer" style={{
                 width: 88, height: 88, borderRadius: 24, objectFit: 'cover',
                 border: '4px solid var(--surface)', boxShadow: 'var(--shadow-accent)',
                 display: 'block',

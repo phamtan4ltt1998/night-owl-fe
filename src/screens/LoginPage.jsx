@@ -117,7 +117,7 @@ export default function LoginPage({ onLogin }) {
         <div className="mesh-orb" style={{ width:200,height:200,bottom:0,right:-40,background:'#0EA5E9',opacity:0.3 }}/>
         {/* Logo */}
         <div style={{ position:'relative', zIndex:1, padding:'32px 24px 0', display:'flex', alignItems:'center', gap:10 }}>
-          <div style={{ width:36,height:36,borderRadius:10,background:'linear-gradient(135deg,rgba(255,255,255,0.2),rgba(255,255,255,0.05))',border:'1px solid rgba(255,255,255,0.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18 }}>🦉</div>
+          <img src="/logo_main.png" alt="NightOwl" style={{ width:36,height:36,borderRadius:10,objectFit:'cover' }} />
           <span style={{ fontSize:20,fontWeight:800,color:'white',fontFamily:'var(--font-display)',letterSpacing:-0.5 }}>NightOwl</span>
         </div>
         {/* Form card */}
@@ -193,7 +193,7 @@ export default function LoginPage({ onLogin }) {
               background:'linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05))',
               border:'1px solid rgba(255,255,255,0.2)',
               display:'flex', alignItems:'center', justifyContent:'center', fontSize:22,
-            }}>🦉</div>
+            }}><img src="/logo_main.png" alt="NightOwl" style={{ width:42,height:42,borderRadius:12,objectFit:'cover' }} /></div>
             <span style={{ fontSize:22, fontWeight:800, color:'white', fontFamily:'var(--font-display)', letterSpacing:-0.5 }}>NightOwl</span>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Icons } from './components/Icons.jsx';
 
 const NAV_ITEMS = [
@@ -12,8 +12,38 @@ const NAV_ITEMS = [
 const EXPANDED_W = 248;
 const COLLAPSED_W = 64;
 
+const SIDEBAR_STYLES = `
+  @keyframes sidebarItemIn {
+    from { transform: translateX(-14px); opacity: 0; }
+    to   { transform: translateX(0);     opacity: 1; }
+  }
+  @keyframes activeDotPulse {
+    0%,100% { transform: scale(1);   box-shadow: 0 0 0 0 rgba(99,91,255,0.4); }
+    50%     { transform: scale(1.4); box-shadow: 0 0 0 5px rgba(99,91,255,0); }
+  }
+  @keyframes logoGlow {
+    0%,100% { box-shadow: var(--shadow-accent); }
+    50%     { box-shadow: var(--shadow-accent), 0 0 18px rgba(99,91,255,0.45); }
+  }
+  @keyframes mobileTabBounce {
+    0%,100% { transform: translateY(0) scale(1); }
+    35%     { transform: translateY(-5px) scale(1.15); }
+    65%     { transform: translateY(-2px) scale(1.05); }
+  }
+  @keyframes readingDot {
+    0%,100% { opacity: 0.4; transform: scale(1); }
+    50%     { opacity: 1;   transform: scale(1.6); }
+  }
+  @keyframes activeBarSlide {
+    from { height: 0; opacity: 0; }
+    to   { height: 65%; opacity: 1; }
+  }
+`;
+
 export default function Sidebar({ active, onNavigate, user, dark, onToggleDark, onBell, books = [], readProgress = {}, isMobile = false }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setMounted(true), 50); return () => clearTimeout(t); }, []);
 
   if (isMobile) {
     return (
@@ -22,6 +52,7 @@ export default function Sidebar({ active, onNavigate, user, dark, onToggleDark, 
         height: 60, background: 'var(--surface)', borderTop: '1px solid var(--border)',
         boxShadow: '0 -2px 12px rgba(0,0,0,0.06)',
       }}>
+        <style>{SIDEBAR_STYLES}</style>
         {NAV_ITEMS.map(item => {
           const isActive = active === item.id;
           return (
@@ -33,10 +64,20 @@ export default function Sidebar({ active, onNavigate, user, dark, onToggleDark, 
                 gap: 3, background: 'none', border: 'none', cursor: 'pointer',
                 color: isActive ? 'var(--accent)' : 'var(--text3)',
                 fontSize: 10, fontWeight: isActive ? 700 : 500,
-                transition: 'color 0.15s',
+                transition: 'color 0.2s',
+                animation: isActive ? 'mobileTabBounce 0.4s cubic-bezier(0.34,1.56,0.64,1)' : 'none',
               }}
             >
-              {item.icon(isActive ? 22 : 20)}
+              <span style={{ display: 'flex', position: 'relative' }}>
+                {item.icon(isActive ? 22 : 20)}
+                {isActive && (
+                  <span style={{
+                    position: 'absolute', bottom: -2, left: '50%', transform: 'translateX(-50%)',
+                    width: 4, height: 4, borderRadius: '50%', background: 'var(--accent)',
+                    animation: 'activeDotPulse 1.6s ease-in-out infinite',
+                  }} />
+                )}
+              </span>
               <span>{item.label}</span>
             </button>
           );
@@ -61,15 +102,14 @@ export default function Sidebar({ active, onNavigate, user, dark, onToggleDark, 
       transition: 'width 0.22s cubic-bezier(.4,0,.2,1)',
       overflow: 'hidden',
     }}>
+      <style>{SIDEBAR_STYLES}</style>
       {/* Logo + collapse toggle */}
       <div style={{ padding: '24px 14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, overflow: 'hidden' }}>
-          <div style={{
+          <img src="/logo_main.png" alt="NightOwl" style={{
             width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-            background: 'var(--grad-accent)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
-            boxShadow: 'var(--shadow-accent)',
-          }}>🦉</div>
+            objectFit: 'cover', animation: 'logoGlow 2.4s ease-in-out infinite',
+          }} />
           {!collapsed && (
             <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: -0.5, fontFamily: 'var(--font-display)', whiteSpace: 'nowrap' }}>NightOwl</span>
           )}
@@ -95,7 +135,7 @@ export default function Sidebar({ active, onNavigate, user, dark, onToggleDark, 
         {!collapsed && (
           <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text3)', letterSpacing: 1.2, textTransform: 'uppercase', padding: '8px 10px', marginBottom: 4 }}>Menu</div>
         )}
-        {NAV_ITEMS.map(item => {
+        {NAV_ITEMS.map((item, idx) => {
           const isActive = active === item.id;
           return (
             <button
@@ -107,18 +147,34 @@ export default function Sidebar({ active, onNavigate, user, dark, onToggleDark, 
                 gap: collapsed ? 0 : 10,
                 justifyContent: collapsed ? 'center' : 'flex-start',
                 padding: collapsed ? '10px 0' : '10px 12px',
-                borderRadius: 10, marginBottom: 2,
+                borderRadius: 10, marginBottom: 2, position: 'relative', overflow: 'hidden',
                 background: isActive ? 'var(--accent-bg)' : 'transparent',
                 color: isActive ? 'var(--accent)' : 'var(--text2)',
                 fontSize: 14, fontWeight: isActive ? 600 : 500,
-                transition: 'all 0.15s', textAlign: 'left',
+                transition: 'all 0.18s', textAlign: 'left',
+                animation: mounted ? `sidebarItemIn 0.3s ease both` : 'none',
+                animationDelay: `${idx * 0.06}s`,
               }}
               onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--surface2)'; }}
               onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
             >
+              {/* Active left bar */}
+              {isActive && !collapsed && (
+                <span style={{
+                  position: 'absolute', left: 0, top: '17.5%',
+                  width: 3, borderRadius: '0 3px 3px 0', background: 'var(--accent)',
+                  animation: 'activeBarSlide 0.3s ease both',
+                  height: '65%',
+                }} />
+              )}
               {item.icon(17)}
               {!collapsed && item.label}
-              {!collapsed && isActive && <div style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)' }} />}
+              {!collapsed && isActive && (
+                <div style={{
+                  marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)',
+                  animation: 'activeDotPulse 1.6s ease-in-out infinite',
+                }} />
+              )}
             </button>
           );
         })}
@@ -140,7 +196,10 @@ export default function Sidebar({ active, onNavigate, user, dark, onToggleDark, 
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <div style={{ fontSize: 16, flexShrink: 0 }}>{b.emoji}</div>
+                  <div style={{ fontSize: 16, flexShrink: 0, position: 'relative' }}>
+                    {b.emoji}
+                    <span style={{ position: 'absolute', top: -2, right: -2, width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)', animation: 'readingDot 1.8s ease-in-out infinite' }} />
+                  </div>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.title}</div>
                     <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 1 }}>Chương {chIdx + 1}</div>
@@ -168,16 +227,12 @@ export default function Sidebar({ active, onNavigate, user, dark, onToggleDark, 
               title={user.name}
               style={{ cursor: 'pointer', borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}
             >
-              {user.picture ? (
-                <img src={user.picture} alt={user.name} style={{ width: 36, height: 36, objectFit: 'cover', display: 'block' }} referrerPolicy="no-referrer" />
-              ) : (
-                <div style={{
-                  width: 36, height: 36, borderRadius: 8,
-                  background: 'var(--grad-accent)', color: 'white',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 14, fontWeight: 700,
-                }}>{user.name[0]?.toUpperCase()}</div>
-              )}
+              <img
+                src={user.picture || '/logo_main.png'}
+                alt={user.name}
+                referrerPolicy="no-referrer"
+                style={{ width: 36, height: 36, objectFit: 'cover', display: 'block' }}
+              />
             </div>
           </div>
         ) : (
@@ -203,18 +258,12 @@ export default function Sidebar({ active, onNavigate, user, dark, onToggleDark, 
               onMouseEnter={e => e.currentTarget.style.background = 'var(--accent-bg)'}
               onMouseLeave={e => e.currentTarget.style.background = 'var(--surface2)'}
             >
-              {user.picture ? (
-                <img src={user.picture} alt={user.name} style={{
-                  width: 30, height: 30, borderRadius: 8, objectFit: 'cover', flexShrink: 0,
-                }} referrerPolicy="no-referrer" />
-              ) : (
-                <div style={{
-                  width: 30, height: 30, borderRadius: 8,
-                  background: 'var(--grad-accent)', color: 'white',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 13, fontWeight: 700, flexShrink: 0,
-                }}>{user.name[0]?.toUpperCase()}</div>
-              )}
+              <img
+                src={user.picture || '/logo_main.png'}
+                alt={user.name}
+                referrerPolicy="no-referrer"
+                style={{ width: 30, height: 30, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
+              />
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</div>
                 <div style={{ fontSize: 10, color: 'var(--text3)' }}>Free plan</div>
