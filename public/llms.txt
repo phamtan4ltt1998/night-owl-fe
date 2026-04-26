@@ -6,7 +6,7 @@ NightOwl là ứng dụng đọc truyện online tiếng Việt, cung cấp hàn
 
 ## Thông tin sản phẩm
 
-- **Website**: https://nightowl.vn
+- **Website**: https://nightowl.io.vn
 - **Ngôn ngữ**: Tiếng Việt
 - **Nền tảng**: Web, iOS, Android
 - **Mô hình**: Freemium — đọc miễn phí, mở khóa chương premium bằng Linh Thạch (💎)
@@ -48,6 +48,6 @@ NightOwl là ứng dụng đọc truyện online tiếng Việt, cung cấp hàn
 
 ## Trang quan trọng
 
-- Trang chủ: https://nightowl.vn/
-- Thư viện truyện: https://nightowl.vn/library
-- Truyện audio: https://nightowl.vn/audio
+- Trang chủ: https://nightowl.io.vn/
+- Thư viện truyện: https://nightowl.io.vn/library
+- Truyện audio: https://nightowl.io.vn/audio
