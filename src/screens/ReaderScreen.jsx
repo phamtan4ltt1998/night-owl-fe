@@ -35,6 +35,10 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
   const advanceTimer = useRef(null);
   const countdownInterval = useRef(null);
   const advanceCancelled = useRef(false);
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const isAnimating = useRef(false);
+  const [animClass, setAnimClass] = useState('');
 
   // Sync khi App cập nhật user.linh_thach (vd: sau khi mua ở ProfileScreen)
   useEffect(() => {
@@ -122,6 +126,35 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
     return () => { el.removeEventListener('scroll', onScroll); cancelAdvance(); };
   }, [autoAdvance, ch?.unlocked, chapter, chapters.length]);
 
+  const goChapter = (newIdx, dir) => {
+    if (isAnimating.current) return;
+    if (newIdx < 0 || newIdx >= chapters.length) return;
+    cancelAdvance();
+    isAnimating.current = true;
+    setAnimClass(dir === 'forward' ? 'page-flip-out-left' : 'page-flip-out-right');
+    setTimeout(() => {
+      setChapter(newIdx);
+      setAnimClass(dir === 'forward' ? 'page-flip-in-right' : 'page-flip-in-left');
+      setTimeout(() => {
+        setAnimClass('');
+        isAnimating.current = false;
+      }, 380);
+    }, 320);
+  };
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy)) return;
+    if (dx < 0 && chapter < chapters.length - 1) goChapter(chapter + 1, 'forward');
+    else if (dx > 0 && chapter > 0) goChapter(chapter - 1, 'backward');
+  };
+
   const handleUnlock = async () => {
     if (unlocking) return;
     if (linhThach < UNLOCK_COST) {
@@ -168,6 +201,28 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
 
   return (
     <div style={{ height:'100vh', display:'flex', flexDirection:'column', background:bgColor }}>
+      <style>{`
+        @keyframes pageFlipOutLeft {
+          0%   { transform: perspective(1200px) rotateY(0deg)   translateX(0);     opacity: 1; }
+          100% { transform: perspective(1200px) rotateY(20deg)  translateX(-110%); opacity: 0.6; }
+        }
+        @keyframes pageFlipInRight {
+          0%   { transform: perspective(1200px) rotateY(-20deg) translateX(110%);  opacity: 0.6; }
+          100% { transform: perspective(1200px) rotateY(0deg)   translateX(0);     opacity: 1; }
+        }
+        @keyframes pageFlipOutRight {
+          0%   { transform: perspective(1200px) rotateY(0deg)   translateX(0);     opacity: 1; }
+          100% { transform: perspective(1200px) rotateY(-20deg) translateX(110%);  opacity: 0.6; }
+        }
+        @keyframes pageFlipInLeft {
+          0%   { transform: perspective(1200px) rotateY(20deg)  translateX(-110%); opacity: 0.6; }
+          100% { transform: perspective(1200px) rotateY(0deg)   translateX(0);     opacity: 1; }
+        }
+        .page-flip-out-left  { animation: pageFlipOutLeft  0.32s cubic-bezier(0.4,0,1,1)   forwards; }
+        .page-flip-in-right  { animation: pageFlipInRight  0.38s cubic-bezier(0,0,0.6,1)   forwards; }
+        .page-flip-out-right { animation: pageFlipOutRight 0.32s cubic-bezier(0.4,0,1,1)   forwards; }
+        .page-flip-in-left   { animation: pageFlipInLeft   0.38s cubic-bezier(0,0,0.6,1)   forwards; }
+      `}</style>
 
       {/* ── Top bar ── */}
       <div style={{
@@ -205,7 +260,14 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
       </div>
 
       {/* ── Content ── */}
-      <div ref={contentRef} style={{ flex:1, overflowY:'auto', background:bgColor, position:'relative' }}>
+      <div style={{ flex:1, overflow:'hidden', background:bgColor, position:'relative' }}>
+      <div
+        ref={contentRef}
+        className={animClass}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        style={{ height:'100%', overflowY:'auto', position:'relative' }}
+      >
         {ch.unlocked !== false ? (
           <div style={{ maxWidth:700, margin:'0 auto', padding: isMobile ? '24px 16px 40px' : '40px 48px 40px' }}>
             <div style={{ fontSize:fontSize+4, fontWeight:800, color:txtColor, marginBottom:28, lineHeight:1.2, fontFamily:'var(--font-display)', letterSpacing:-0.5 }}>
@@ -303,6 +365,7 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
           </div>
         )}
       </div>
+      </div>
 
       {/* ── Bottom bar ── */}
       <div style={{
@@ -311,9 +374,9 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
         background:barBg, borderTop:barBorder, zIndex:30,
       }}>
         <button
-          onClick={()=>{ setChapter(c=>Math.max(0,c-1)); }}
-          disabled={chapter===0}
-          style={{ ...btnStyle, opacity:chapter===0?0.35:1 }}
+          onClick={() => goChapter(chapter - 1, 'backward')}
+          disabled={chapter === 0}
+          style={{ ...btnStyle, opacity: chapter === 0 ? 0.35 : 1 }}
         >
           ← Chương trước
         </button>
@@ -321,9 +384,9 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
           {ch.chapterNumber} / {chapters.length}
         </div>
         <button
-          onClick={()=>{ setChapter(c=>Math.min(chapters.length-1,c+1)); }}
-          disabled={chapter>=chapters.length-1}
-          style={{ ...btnStyle, opacity:chapter>=chapters.length-1?0.35:1 }}
+          onClick={() => goChapter(chapter + 1, 'forward')}
+          disabled={chapter >= chapters.length - 1}
+          style={{ ...btnStyle, opacity: chapter >= chapters.length - 1 ? 0.35 : 1 }}
         >
           Chương sau →
         </button>
