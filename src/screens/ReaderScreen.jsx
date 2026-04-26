@@ -1,11 +1,158 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Icons } from '../components/Icons.jsx';
+import { StarRating } from '../components/shared.jsx';
+import BookCover from '../components/BookCover.jsx';
 import { api } from '../api.js';
 import { useIsMobile } from '../hooks/useIsMobile.js';
 
 const BACKGROUNDS = { white:'#FFFFFF', parchment:'#FAF3E0', slate:'#1E2A3A', dark:'#0D0D0D' };
 const TEXT_COLORS  = { white:'#1D1D1F', parchment:'#3D2B1F', slate:'#E8F0F8', dark:'#F0F0F0' };
 const UNLOCK_COST = 5;
+
+function ChapterPicker({ chapters, current, isDark, txtColor, isMobile, onSelect, onClose }) {
+  const [query, setQuery] = useState('');
+  const listRef = useRef(null);
+  const currentRef = useRef(null);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return chapters.map((c, i) => ({ ...c, _idx: i })).filter(c =>
+      !q ||
+      String(c.chapterNumber ?? c._idx + 1).includes(q) ||
+      (c.title || '').toLowerCase().includes(q)
+    );
+  }, [chapters, query]);
+
+  // Auto-scroll to current chapter when popup opens
+  useEffect(() => {
+    if (!query && currentRef.current && listRef.current) {
+      currentRef.current.scrollIntoView({ block: 'center', behavior: 'instant' });
+    }
+  }, []);
+
+  const surface  = isDark ? 'rgba(18,18,28,0.97)' : 'rgba(255,255,255,0.98)';
+  const divider  = isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)';
+  const inputBg  = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)';
+  const hoverBg  = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
+  const numColor = isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.28)';
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:50, background:'rgba(0,0,0,0.4)', backdropFilter:'blur(4px)' }} onClick={onClose}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          position:'absolute', top:62, left:'50%', transform:'translateX(-50%)',
+          width: isMobile ? '96vw' : 520,
+          maxHeight:'75vh', display:'flex', flexDirection:'column',
+          background: surface,
+          borderRadius:18,
+          border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
+          boxShadow:'0 32px 80px rgba(0,0,0,0.4)',
+          overflow:'hidden',
+        }}
+      >
+        {/* Header */}
+        <div style={{ padding:'16px 18px 12px', borderBottom: divider, flexShrink:0 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+            <div>
+              <div style={{ fontSize:14, fontWeight:800, color:txtColor, letterSpacing:-0.3 }}>Chọn chương</div>
+              <div style={{ fontSize:11, color: isDark?'rgba(255,255,255,0.35)':'rgba(0,0,0,0.35)', marginTop:2 }}>
+                Đang đọc chương {chapters[current]?.chapterNumber ?? current + 1} · {chapters.length} chương
+              </div>
+            </div>
+            <button onClick={onClose} style={{ width:30, height:30, borderRadius:8, background: isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.06)', color:txtColor, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
+              {Icons.close(13)}
+            </button>
+          </div>
+          {/* Search input */}
+          <div style={{ position:'relative' }}>
+            <div style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color: isDark?'rgba(255,255,255,0.3)':'rgba(0,0,0,0.3)', display:'flex' }}>
+              {Icons.search(14)}
+            </div>
+            <input
+              autoFocus
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Tìm tên chương hoặc số chương..."
+              style={{
+                width:'100%', boxSizing:'border-box',
+                padding:'8px 12px 8px 34px', borderRadius:10,
+                background: inputBg,
+                border: isDark?'1px solid rgba(255,255,255,0.08)':'1px solid rgba(0,0,0,0.08)',
+                color: txtColor, fontSize:13, outline:'none',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Chapter list */}
+        <div ref={listRef} style={{ overflowY:'auto', flex:1, padding:'6px 8px' }}>
+          {filtered.length === 0 && (
+            <div style={{ textAlign:'center', padding:'32px 0', fontSize:13, color: isDark?'rgba(255,255,255,0.3)':'rgba(0,0,0,0.3)' }}>
+              Không tìm thấy chương
+            </div>
+          )}
+          {filtered.map(c => {
+            const isCurrent = c._idx === current;
+            const isLocked  = c.unlocked === false;
+            const chNum     = c.chapterNumber ?? c._idx + 1;
+            return (
+              <div
+                key={c.chapterNumber ?? c._idx}
+                ref={isCurrent ? currentRef : null}
+                onClick={() => { if (!isLocked) onSelect(c._idx); }}
+                style={{
+                  display:'flex', alignItems:'center', gap:12,
+                  padding:'10px 12px', borderRadius:11, marginBottom:2,
+                  background: isCurrent ? 'var(--accent-bg)' : 'transparent',
+                  cursor: isLocked ? 'not-allowed' : 'pointer',
+                  transition:'background 0.12s',
+                  opacity: isLocked ? 0.5 : 1,
+                }}
+                onMouseEnter={e => { if (!isCurrent && !isLocked) e.currentTarget.style.background = hoverBg; }}
+                onMouseLeave={e => { if (!isCurrent) e.currentTarget.style.background = 'transparent'; }}
+              >
+                {/* Chapter number badge */}
+                <div style={{
+                  minWidth:36, height:36, borderRadius:9, flexShrink:0,
+                  background: isCurrent ? 'var(--accent)' : (isDark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.06)'),
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  fontSize:11, fontWeight:800,
+                  color: isCurrent ? 'white' : numColor,
+                }}>
+                  {chNum}
+                </div>
+
+                {/* Title */}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{
+                    fontSize:13, fontWeight: isCurrent ? 700 : 500,
+                    color: isCurrent ? 'var(--accent)' : txtColor,
+                    overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+                    lineHeight:1.3,
+                  }}>
+                    {c.title}
+                  </div>
+                  <div style={{ fontSize:10, color: isDark?'rgba(255,255,255,0.28)':'rgba(0,0,0,0.3)', marginTop:2 }}>
+                    Chương {chNum}
+                  </div>
+                </div>
+
+                {/* Right badges */}
+                {isCurrent && (
+                  <span style={{ fontSize:10, fontWeight:700, color:'var(--accent)', background:'var(--accent-bg)', padding:'3px 8px', borderRadius:6, flexShrink:0 }}>
+                    Đang đọc
+                  </span>
+                )}
+                {isLocked && <span style={{ fontSize:13, flexShrink:0 }}>🔒</span>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ReaderSetting({ label, children, color='var(--text)' }) {
   return (
@@ -16,9 +163,10 @@ function ReaderSetting({ label, children, color='var(--text)' }) {
   );
 }
 
-export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, onBack, onHome, onChapterChange, user, onUserUpdate, autoAdvance=true, fontSize=17, onFontSizeChange }) {
+export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, onBack, onHome, onChapterChange, user, onUserUpdate, autoAdvance=true, fontSize=17, onFontSizeChange, books=[], onNavigate, pageFlip=false, onPageFlipChange }) {
   const isMobile = useIsMobile();
   const [showSettings, setShowSettings] = useState(false);
+  const [showChapters, setShowChapters] = useState(false);
   const [chapter, setChapter]           = useState(chapterIdx);
   const setFontSize = (fn) => onFontSizeChange(typeof fn === 'function' ? fn(fontSize) : fn);
   const [fontFamily, setFontFamily]     = useState('serif');
@@ -130,6 +278,10 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
     if (isAnimating.current) return;
     if (newIdx < 0 || newIdx >= chapters.length) return;
     cancelAdvance();
+    if (!pageFlip) {
+      setChapter(newIdx);
+      return;
+    }
     isAnimating.current = true;
     setAnimClass(dir === 'forward' ? 'page-flip-out-left' : 'page-flip-out-right');
     setTimeout(() => {
@@ -178,6 +330,14 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
       setUnlocking(false);
     }
   };
+
+  const relatedBooks = useMemo(() => {
+    if (!books.length) return [];
+    return books
+      .filter(b => b.id !== book.id && b.genre === book.genre)
+      .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+      .slice(0, 8);
+  }, [books, book.id, book.genre]);
 
   const bgColor  = BACKGROUNDS[bgMode];
   const txtColor = TEXT_COLORS[bgMode];
@@ -237,10 +397,51 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
           {Icons.compass(16)}
         </button>
 
-        {/* Center: title */}
-        <div style={{ flex:1, textAlign:'center', minWidth:0 }}>
-          <div style={{ fontSize:14, fontWeight:700, color:txtColor, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{book.title}</div>
-          <div style={{ fontSize:11, color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)' }}>{ch.title}</div>
+        {/* Center: chapter select button — compact, centered */}
+        <div style={{ flex:1, display:'flex', justifyContent:'center', minWidth:0 }}>
+          <button
+            onClick={() => { setShowChapters(s=>!s); setShowSettings(false); }}
+            style={{
+              cursor:'pointer', maxWidth: isMobile ? 180 : 260,
+              display:'flex', alignItems:'center', gap:6,
+              padding:'5px 10px 5px 6px', borderRadius:20,
+              background: showChapters
+                ? 'var(--accent)'
+                : (isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)'),
+              border: showChapters
+                ? 'none'
+                : (isDark ? '1px solid rgba(255,255,255,0.14)' : '1px solid rgba(0,0,0,0.1)'),
+              transition:'background 0.15s',
+            }}
+            title="Chọn chương"
+          >
+            {/* Chapter number badge */}
+            <span style={{
+              fontSize:10, fontWeight:800,
+              padding:'2px 7px', borderRadius:12, flexShrink:0,
+              background: showChapters ? 'rgba(255,255,255,0.25)' : 'var(--accent)',
+              color: 'white',
+            }}>
+              {ch.chapterNumber ?? chapter + 1}
+            </span>
+
+            {/* Chapter title */}
+            <span style={{
+              fontSize:12, fontWeight:600,
+              color: showChapters ? 'white' : txtColor,
+              overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+            }}>
+              {ch.title}
+            </span>
+
+            {/* Chevron */}
+            <span style={{
+              fontSize:9, flexShrink:0,
+              color: showChapters ? 'rgba(255,255,255,0.75)' : (isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.35)'),
+              transform: showChapters ? 'rotate(180deg)' : 'none',
+              transition:'transform 0.2s',
+            }}>▾</span>
+          </button>
         </div>
 
         {/* Right: dark/light toggle + settings */}
@@ -259,14 +460,48 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
         }}>Aa</button>
       </div>
 
-      {/* ── Content ── */}
-      <div style={{ flex:1, overflow:'hidden', background:bgColor, position:'relative' }}>
+      {/* ── Chapter picker popup ── */}
+      {showChapters && (
+        <ChapterPicker
+          chapters={chapters}
+          current={chapter}
+          isDark={isDark}
+          txtColor={txtColor}
+          isMobile={isMobile}
+          onSelect={(i) => { goChapter(i, i > chapter ? 'forward' : 'backward'); setShowChapters(false); }}
+          onClose={() => setShowChapters(false)}
+        />
+      )}
+
+      {/* ── Content + Sidebars ── */}
+      <div style={{ flex:1, overflow:'hidden', display:'flex', background:bgColor, position:'relative' }}>
+
+        {/* Left: Google Ads (desktop only) */}
+        {!isMobile && (
+          <div style={{ width:160, flexShrink:0, padding:'20px 8px', display:'flex', flexDirection:'column', alignItems:'center', gap:16, overflowY:'auto', borderRight:`1px solid ${isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)'}` }}>
+            {/* Google AdSense — thay data-ad-client và data-ad-slot bằng ID thật */}
+            <div style={{ width:140, minHeight:600, background: isDark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.04)', borderRadius:10, border:`1px dashed ${isDark?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.1)'}`, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:6 }}>
+              <span style={{ fontSize:9, color: isDark?'rgba(255,255,255,0.25)':'rgba(0,0,0,0.25)', letterSpacing:1, textTransform:'uppercase' }}>Quảng cáo</span>
+              {/* Uncomment và điền ID AdSense thật:
+              <ins className="adsbygoogle"
+                style={{ display:'block', width:140, height:600 }}
+                data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+                data-ad-slot="XXXXXXXXXX"
+                data-ad-format="auto"
+                data-full-width-responsive="false"
+              />
+              */}
+            </div>
+          </div>
+        )}
+
+        {/* Center: main reading area */}
       <div
         ref={contentRef}
         className={animClass}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        style={{ height:'100%', overflowY:'auto', position:'relative' }}
+        style={{ flex:1, height:'100%', overflowY:'auto', position:'relative' }}
       >
         {ch.unlocked !== false ? (
           <div style={{ maxWidth:700, margin:'0 auto', padding: isMobile ? '24px 16px 40px' : '40px 48px 40px' }}>
@@ -365,6 +600,30 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
           </div>
         )}
       </div>
+
+        {/* Right: Related books (desktop only) */}
+        {!isMobile && (
+          <div style={{ width:200, flexShrink:0, overflowY:'auto', padding:'16px 10px', borderLeft:`1px solid ${isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)'}`, background: isDark?'rgba(0,0,0,0.15)':'rgba(0,0,0,0.02)' }}>
+            <div style={{ fontSize:10, fontWeight:700, letterSpacing:1.2, textTransform:'uppercase', color: isDark?'rgba(255,255,255,0.35)':'rgba(0,0,0,0.35)', marginBottom:12, padding:'0 4px' }}>
+              Cùng thể loại
+            </div>
+            {relatedBooks.length === 0 ? (
+              <div style={{ fontSize:12, color: isDark?'rgba(255,255,255,0.25)':'rgba(0,0,0,0.25)', textAlign:'center', padding:'20px 0' }}>Chưa có truyện</div>
+            ) : relatedBooks.map(b => (
+              <div key={b.id} onClick={() => onNavigate?.('detail', b)} style={{ display:'flex', gap:8, padding:'8px 4px', borderRadius:8, cursor:'pointer', marginBottom:4, transition:'background 0.15s' }}
+                onMouseEnter={e=>e.currentTarget.style.background=isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.05)'}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+              >
+                <BookCover book={b} width={48} radius={7} noEffect />
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:11, fontWeight:700, lineHeight:1.3, marginBottom:3, color: isDark?'rgba(255,255,255,0.9)':'rgba(0,0,0,0.85)', overflow:'hidden', textOverflow:'ellipsis', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>{b.title}</div>
+                  <StarRating rating={b.rating} size={9} />
+                  <div style={{ fontSize:10, color: isDark?'rgba(255,255,255,0.35)':'rgba(0,0,0,0.4)', marginTop:2 }}>{b.chapters} ch.</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Bottom bar ── */}
@@ -437,6 +696,29 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
                   fontFamily:v==='serif'?'Georgia,serif':'var(--font-body)',
                 }}>{l}</button>
               ))}
+            </div>
+          </ReaderSetting>
+
+          <ReaderSetting label="Hiệu ứng lật trang">
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <span style={{ fontSize:13, color: isDark?'rgba(255,255,255,0.55)':'rgba(0,0,0,0.55)' }}>
+                {pageFlip ? 'Bật' : 'Tắt'}
+              </span>
+              <button
+                onClick={() => onPageFlipChange?.(!pageFlip)}
+                style={{
+                  width:44, height:24, borderRadius:12, cursor:'pointer', position:'relative',
+                  background: pageFlip ? 'var(--accent)' : (isDark?'rgba(255,255,255,0.15)':'rgba(0,0,0,0.15)'),
+                  transition:'background 0.2s',
+                  flexShrink:0,
+                }}
+              >
+                <span style={{
+                  position:'absolute', top:3, left: pageFlip ? 23 : 3,
+                  width:18, height:18, borderRadius:'50%', background:'white',
+                  transition:'left 0.2s', boxShadow:'0 1px 4px rgba(0,0,0,0.25)',
+                }} />
+              </button>
             </div>
           </ReaderSetting>
 

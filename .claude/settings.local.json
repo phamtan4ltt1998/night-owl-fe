@@ -54,7 +54,8 @@
       "mcp__chrome-devtools__fill",
       "Bash(rtk read *)",
       "Bash(git clone *)",
-      "Bash(rtk npm *)"
+      "Bash(rtk npm *)",
+      "Bash(node -e \"const ls=require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\);const d=JSON.parse\\(ls\\);console.log\\(d\\)\")"
     ]
   }
 }

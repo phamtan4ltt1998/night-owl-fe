@@ -59,6 +59,11 @@ async function post(path, body) {
 
 export const api = {
   getBooks: (genre) => get(genre ? `/books?genre=${encodeURIComponent(genre)}` : '/books'),
+  getBooksPaged: ({ page = 1, pageSize = 24, genre, sortBy = 'read_count', sortOrder = 'desc' } = {}) => {
+    const params = new URLSearchParams({ page, page_size: pageSize, sort_by: sortBy, sort_order: sortOrder });
+    if (genre && genre !== 'Tất cả') params.set('genre', genre);
+    return get(`/books/paged?${params}`);
+  },
   searchBooks: (q, { genre, limit = 20, offset = 0 } = {}) => {
     const params = new URLSearchParams({ q, limit, offset });
     if (genre && genre !== 'Tất cả') params.set('genre', genre);

@@ -85,15 +85,18 @@ export function Toggle({ value, onChange }) {
 }
 
 export function Section({ title, action, onAction, children, style={} }) {
+  const actionNode = typeof action === 'string'
+    ? (
+      <button onClick={onAction} style={{ fontSize:13, color:'var(--accent)', fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}>
+        {action} {Icons.chevronRight(14)}
+      </button>
+    )
+    : action;
   return (
     <div style={{ marginBottom:8, ...style }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
         <h2 style={{ fontSize:20, fontWeight:800, letterSpacing:-0.5, fontFamily:'var(--font-display)' }}>{title}</h2>
-        {action && (
-          <button onClick={onAction} style={{ fontSize:13, color:'var(--accent)', fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}>
-            {action} {Icons.chevronRight(14)}
-          </button>
-        )}
+        {actionNode && <div style={{ display:'flex', alignItems:'center' }}>{actionNode}</div>}
       </div>
       {children}
     </div>
