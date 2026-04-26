@@ -125,7 +125,7 @@ export default function AudiobookScreen({ book, onBack }) {
           setAudioState('ready');
         }
       } catch { /* keep polling */ }
-    }, 3000);
+    }, 15000);
   }, []);
 
   useEffect(() => () => stopPolling(), []);

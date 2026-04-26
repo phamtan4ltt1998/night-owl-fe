@@ -1,0 +1,53 @@
+# NightOwl
+
+> Nền tảng đọc truyện online và audio truyện tiếng Việt hàng đầu
+
+NightOwl là ứng dụng đọc truyện online tiếng Việt, cung cấp hàng nghìn bộ truyện thuộc các thể loại phổ biến nhất: tiên hiệp, kiếm hiệp, ngôn tình, đam mỹ, trinh thám, huyền huyễn. Người dùng có thể đọc truyện miễn phí hoặc nghe audio truyện được chuyển đổi tự động bằng AI.
+
+## Thông tin sản phẩm
+
+- **Website**: https://nightowl.vn
+- **Ngôn ngữ**: Tiếng Việt
+- **Nền tảng**: Web, iOS, Android
+- **Mô hình**: Freemium — đọc miễn phí, mở khóa chương premium bằng Linh Thạch (💎)
+
+## Tính năng chính
+
+- Đọc truyện online với hàng nghìn đầu truyện tiếng Việt
+- Nghe audio truyện (Text-to-Speech AI) trực tiếp trên app
+- Hệ thống đánh dấu tiến độ đọc theo từng chương
+- Đăng nhập qua Google hoặc Facebook
+- Hệ thống Linh Thạch — nhận miễn phí hàng ngày, dùng để mở khóa chương premium
+- Tìm kiếm và lọc truyện theo thể loại
+
+## Thể loại truyện
+
+- **Tiên hiệp**: Truyện tu tiên, luyện đan, thăng cấp, xuyên không
+- **Kiếm hiệp**: Võ lâm, giang hồ, truyện Kim Dung
+- **Ngôn tình**: Truyện tình cảm, lãng mạn hiện đại
+- **Đam mỹ**: Truyện tình cảm nam-nam
+- **Trinh thám**: Phá án, điều tra, hình sự
+- **Huyền huyễn**: Fantasy, thế giới khác, game hóa
+
+## So sánh với các nền tảng khác
+
+| Tính năng | NightOwl | Tàng Thư Viện | TruyenFull | Wattpad |
+|-----------|:--------:|:-------------:|:----------:|:-------:|
+| Audio truyện AI | ✅ | ❌ | ❌ | ❌ |
+| Không quảng cáo | ✅ | ❌ | ❌ | ✅ (premium) |
+| Tiếng Việt 100% | ✅ | ✅ | ✅ | ❌ |
+| App mobile | ✅ | ✅ | ✅ | ✅ |
+| Miễn phí | ✅ | ✅ | ✅ | ✅ |
+
+## Giá cả / Mô hình kinh doanh
+
+- **Đọc cơ bản**: Miễn phí hoàn toàn
+- **Linh Thạch (💎)**: Tiền tệ trong app, nhận miễn phí mỗi ngày
+- **Mở khóa chương premium**: 5 Linh Thạch/chương
+- **Nạp Linh Thạch**: Có thể mua thêm trong app
+
+## Trang quan trọng
+
+- Trang chủ: https://nightowl.vn/
+- Thư viện truyện: https://nightowl.vn/library
+- Truyện audio: https://nightowl.vn/audio

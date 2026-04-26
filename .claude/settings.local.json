@@ -53,7 +53,8 @@
       "mcp__chrome-devtools__emulate",
       "mcp__chrome-devtools__fill",
       "Bash(rtk read *)",
-      "Bash(git clone *)"
+      "Bash(git clone *)",
+      "Bash(rtk npm *)"
     ]
   }
 }

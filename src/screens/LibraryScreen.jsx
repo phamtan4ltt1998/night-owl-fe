@@ -2,6 +2,7 @@ import { useState } from 'react';
 import BookCover from '../components/BookCover.jsx';
 import { Pill, Btn, BookCard } from '../components/shared.jsx';
 import { useIsMobile } from '../hooks/useIsMobile.js';
+import { blogPosts } from '../data/blogPosts.js';
 
 const PREVIEW_COUNT = 5;
 
@@ -65,7 +66,7 @@ export default function LibraryScreen({ onNavigate, books = [], savedBookIds = n
       <div style={{ padding:`${isMobile?20:36}px ${px}px 0`, borderBottom:'1px solid var(--border)', background:'var(--surface)' }}>
         <h1 style={{ fontSize:isMobile?26:34, fontWeight:800, letterSpacing:-1, fontFamily:'var(--font-display)', marginBottom:16 }}>Thư viện</h1>
         <div style={{ display:'flex', gap:4 }}>
-          {[['reading','Đang đọc'],['saved','Đã lưu'],['finished','Hoàn thành']].map(([k,l])=>(
+          {[['reading','Đang đọc'],['blog','Blog'],['finished','Hoàn thành']].map(([k,l])=>(
             <button key={k} onClick={() => setTab(k)} style={{
               padding: isMobile ? '10px 14px' : '12px 20px', fontSize:14, fontWeight:600, cursor:'pointer', background:'none',
               color: tab===k?'var(--accent)':'var(--text2)',
@@ -105,11 +106,41 @@ export default function LibraryScreen({ onNavigate, books = [], savedBookIds = n
           </>
         )}
 
-        {tab==='saved' && (
-          <div style={{ display: isMobile ? 'flex' : 'grid', flexDirection: isMobile ? 'column' : undefined, gridTemplateColumns: isMobile ? undefined : 'repeat(auto-fill, minmax(180px, 1fr))', gap: isMobile ? 0 : 20 }}>
-            {books.filter(b => savedBookIds.has(b.id)).length === 0
-              ? <p style={{ color:'var(--text3)', gridColumn:'1/-1', textAlign:'center', marginTop:40 }}>Chưa lưu truyện nào.</p>
-              : books.filter(b => savedBookIds.has(b.id)).map(b => <BookCard key={b.id} book={b} onNavigate={onNavigate}/>)
+        {tab==='blog' && (
+          <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+            {blogPosts.length === 0
+              ? <p style={{ color:'var(--text3)', textAlign:'center', marginTop:40 }}>Chưa có bài viết nào.</p>
+              : blogPosts.map(post => (
+                <a
+                  key={post.slug}
+                  href={post.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ textDecoration:'none', color:'inherit' }}
+                >
+                  <div style={{
+                    background:'var(--surface)', borderRadius:14, border:'1px solid var(--border)',
+                    padding:'20px 24px', boxShadow:'var(--shadow-sm)', transition:'all 0.2s', cursor:'pointer',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.boxShadow='var(--shadow-md)'; e.currentTarget.style.transform='translateY(-2px)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.boxShadow='var(--shadow-sm)'; e.currentTarget.style.transform='translateY(0)'; }}
+                  >
+                    <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:10 }}>
+                      <span style={{
+                        fontSize:11, fontWeight:700, padding:'3px 10px', borderRadius:20,
+                        background:'var(--accent-bg)', color:'var(--accent)', textTransform:'uppercase', letterSpacing:0.5,
+                      }}>{post.category}</span>
+                      <span style={{ fontSize:12, color:'var(--text3)' }}>{post.readTime}</span>
+                      <span style={{ fontSize:12, color:'var(--text3)', marginLeft:'auto' }}>
+                        {new Date(post.date).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' })}
+                      </span>
+                    </div>
+                    <div style={{ fontSize:17, fontWeight:700, letterSpacing:-0.3, fontFamily:'var(--font-display)', marginBottom:8, lineHeight:1.4 }}>{post.title}</div>
+                    <div style={{ fontSize:13, color:'var(--text2)', lineHeight:1.6 }}>{post.description}</div>
+                    <div style={{ marginTop:14, fontSize:13, fontWeight:600, color:'var(--accent)' }}>Đọc bài viết →</div>
+                  </div>
+                </a>
+              ))
             }
           </div>
         )}

@@ -1,0 +1,37 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+
+# AI Search Bots — Cho phép index và trích dẫn nội dung NightOwl
+# Google AI Overviews & Gemini
+User-agent: Google-Extended
+Allow: /
+
+# ChatGPT / OpenAI
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+# Perplexity AI
+User-agent: PerplexityBot
+Allow: /
+
+# Anthropic / Claude
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+# Microsoft Copilot (via Bing)
+User-agent: Bingbot
+Allow: /
+
+# Common Crawl (training data — block nếu không muốn dùng cho training AI)
+User-agent: CCBot
+Disallow: /
+
+Sitemap: https://nightowl.vn/sitemap.xml
