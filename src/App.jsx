@@ -32,6 +32,7 @@ export default function App() {
   const [readProgress,  setReadProgress]  = useState(stored.readProgress || {});
   const [autoAdvance,   setAutoAdvance]   = useState(stored.autoAdvance  ?? true);
   const [savePosition,  setSavePosition]  = useState(stored.savePosition ?? true);
+  const [pageFlip,      setPageFlip]      = useState(stored.pageFlip     ?? false);
 
   useEffect(() => {
     api.getBooks().then(setBooks).catch(console.error);
@@ -49,8 +50,9 @@ export default function App() {
       readProgress,
       autoAdvance,
       savePosition,
+      pageFlip,
     }));
-  },[user, screen, dark, fontSize, savedBooks, readProgress, autoAdvance, savePosition]);
+  },[user, screen, dark, fontSize, savedBooks, readProgress, autoAdvance, savePosition, pageFlip]);
 
   useEffect(()=>{
     const handler = e => {
@@ -123,7 +125,7 @@ export default function App() {
 
   // Fullscreen screens — no sidebar
   if (screen==='reader' && detail) {
-    return <ReaderScreen book={detail.book} chapterIdx={detail.chIdx??0} dark={dark} onToggleDark={()=>setDark(d=>!d)} onBack={()=>setScreen('detail')} onHome={()=>navigate('home')} onChapterChange={chIdx=>saveChapterProgress(detail.book.id, chIdx)} user={user} onUserUpdate={u=>setUser(u)} autoAdvance={autoAdvance} fontSize={fontSize} onFontSizeChange={setFontSize}/>;
+    return <ReaderScreen book={detail.book} chapterIdx={detail.chIdx??0} dark={dark} onToggleDark={()=>setDark(d=>!d)} onBack={()=>setScreen('detail')} onHome={()=>navigate('home')} onChapterChange={chIdx=>saveChapterProgress(detail.book.id, chIdx)} user={user} onUserUpdate={u=>setUser(u)} autoAdvance={autoAdvance} fontSize={fontSize} onFontSizeChange={setFontSize} books={books} onNavigate={navigate} pageFlip={pageFlip} onPageFlipChange={setPageFlip}/>;
   }
 
   const activeTab = ['home','library','foreign','audio','profile'].includes(screen) ? screen : 'home';

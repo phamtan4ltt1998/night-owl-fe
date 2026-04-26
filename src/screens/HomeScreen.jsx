@@ -112,6 +112,8 @@ function SearchResultItem({ book, onNavigate }) {
   );
 }
 
+const PAGE_SIZE_OPTIONS = [12, 24, 48];
+
 export default function HomeScreen({ onNavigate, books = [], genres = [], readProgress = {} }) {
   const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
@@ -123,9 +125,18 @@ export default function HomeScreen({ onNavigate, books = [], genres = [], readPr
   const touchStartX = useRef(0);
   const px = isMobile ? 16 : 48;
 
+  // ── Pagination state ──
+  const [pagedBooks, setPagedBooks] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(24);
+  const [sortBy, setSortBy] = useState('read_count');
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalBooks, setTotalBooks] = useState(0);
+  const [loadingBooks, setLoadingBooks] = useState(false);
+
   const featuredBooks = books.slice(0, 10);
   const [slideIdx, setSlideIdx] = useState(0);
-  const [fade, setFade] = useState(true);
+  const [animPhase, setAnimPhase] = useState('idle');
 
   const isTienHiep = (book) =>
     book?.genre?.toLowerCase().includes('tiên hiệp') ||
@@ -134,11 +145,12 @@ export default function HomeScreen({ onNavigate, books = [], genres = [], readPr
   const startTimer = () => {
     clearInterval(slideTimer.current);
     slideTimer.current = setInterval(() => {
-      setFade(false);
+      setAnimPhase('exit');
       setTimeout(() => {
         setSlideIdx(i => (i + 1) % Math.max(featuredBooks.length, 1));
-        setFade(true);
-      }, 300);
+        setAnimPhase('enter');
+        setTimeout(() => setAnimPhase('idle'), 420);
+      }, 340);
     }, 4500);
   };
 
@@ -150,14 +162,46 @@ export default function HomeScreen({ onNavigate, books = [], genres = [], readPr
 
   const goSlide = (newIdx) => {
     clearInterval(slideTimer.current);
-    setFade(false);
-    setTimeout(() => { setSlideIdx(newIdx); setFade(true); startTimer(); }, 300);
+    setAnimPhase('exit');
+    setTimeout(() => {
+      setSlideIdx(newIdx);
+      setAnimPhase('enter');
+      setTimeout(() => { setAnimPhase('idle'); startTimer(); }, 420);
+    }, 340);
   };
 
   const featured = featuredBooks[slideIdx] ?? featuredBooks[0];
 
-  // genre filter on local books list (no search active)
-  const filtered = genre === 'Tất cả' ? books : books.filter(b => b.genre === genre);
+  // ── Fetch paginated books from server ──
+  useEffect(() => {
+    if (search.trim()) return; // search mode — skip paged fetch
+    setLoadingBooks(true);
+    api.getBooksPaged({ page, pageSize, genre, sortBy })
+      .then(res => {
+        if (Array.isArray(res)) {
+          setPagedBooks(res);
+          setTotalPages(1);
+          setTotalBooks(res.length);
+        } else {
+          const pg = res.pagination ?? {};
+          setPagedBooks(res.data ?? res.books ?? []);
+          setTotalPages(pg.total_pages ?? res.total_pages ?? 1);
+          setTotalBooks(pg.total ?? res.total ?? 0);
+        }
+      })
+      .catch(() => {
+        // Fallback: filter from App-level books if API not yet paginated
+        const all = genre === 'Tất cả' ? books : books.filter(b => b.genre === genre);
+        const start = (page - 1) * pageSize;
+        setPagedBooks(all.slice(start, start + pageSize));
+        setTotalPages(Math.ceil(all.length / pageSize));
+        setTotalBooks(all.length);
+      })
+      .finally(() => setLoadingBooks(false));
+  }, [page, pageSize, genre, search, books]);
+
+  // Reset to page 1 when genre, pageSize, or sortBy changes
+  useEffect(() => { setPage(1); }, [genre, pageSize, sortBy]);
 
   const execSearch = (q) => {
     if (!q.trim()) return;
@@ -344,8 +388,21 @@ export default function HomeScreen({ onNavigate, books = [], genres = [], readPr
                 )}
               </div>
 
-              {/* Slide content with fade */}
-              <div style={{ opacity: fade ? 1 : 0, transition: 'opacity 0.3s ease' }}>
+              {/* Slide content — exit: slide left + fade out | enter: slide from right + fade in */}
+              <style>{`
+                @keyframes slideExitLeft {
+                  from { transform: translateX(0);    opacity: 1; }
+                  to   { transform: translateX(-90px); opacity: 0; }
+                }
+                @keyframes slideEnterRight {
+                  from { transform: translateX(90px);  opacity: 0; }
+                  to   { transform: translateX(0);     opacity: 1; }
+                }
+              `}</style>
+              <div style={{
+                animation: animPhase === 'exit'  ? 'slideExitLeft   0.34s cubic-bezier(0.4,0,1,1)   forwards' :
+                           animPhase === 'enter' ? 'slideEnterRight 0.42s cubic-bezier(0,0,0.2,1)   forwards' : 'none',
+              }}>
                 {isMobile ? (
                   <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
                     <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -420,78 +477,204 @@ export default function HomeScreen({ onNavigate, books = [], genres = [], readPr
         </div>
       </div>
 
-      {/* Quick genre filter — always visible */}
-      <div style={{
-        padding: `0 ${px}px`,
-        borderBottom: '1px solid var(--border)',
-        background: 'var(--surface)',
-        position: 'sticky', top: 0, zIndex: 10,
-        boxShadow: 'var(--shadow-sm)',
-      }}>
-        <div style={{
-          display: 'flex', gap: 4, overflowX: 'auto', paddingTop: 12, paddingBottom: 12,
-          scrollbarWidth: 'none', msOverflowStyle: 'none',
-        }}>
-          {allGenres.map(g => (
-            <button
-              key={g}
-              onClick={() => { setGenre(g); setSearch(''); }}
-              style={{
-                flexShrink: 0, padding: isMobile ? '6px 14px' : '7px 18px', borderRadius: 20, fontSize: 13, fontWeight: 600,
-                background: genre === g && !search ? 'var(--accent)' : 'transparent',
-                color: genre === g && !search ? 'white' : 'var(--text2)',
-                border: genre === g && !search ? 'none' : '1.5px solid var(--border2)',
-                boxShadow: genre === g && !search ? 'var(--shadow-accent)' : 'none',
-                transition: 'all 0.15s', cursor: 'pointer', whiteSpace: 'nowrap',
-              }}
-            >{g}</button>
-          ))}
-        </div>
-      </div>
+      {/* Body: [genre filter + content] + [Ad column] */}
+      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
 
-      {/* Content */}
-      <div style={{ padding: isMobile ? '20px 16px' : '32px 48px' }}>
-        {search ? (
-          /* Search results — server-side */
-          <div>
-            {isSearching ? (
-              <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text3)' }}>
-                <div style={{ fontSize: 13 }}>Đang tìm kiếm...</div>
-              </div>
-            ) : searchResults.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text3)' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Không tìm thấy truyện nào</div>
-                <div style={{ fontSize: 13 }}>Thử từ khóa khác nhé</div>
+        {/* Main content */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Quick genre filter — always visible */}
+          <div style={{
+            padding: `0 ${isMobile ? 16 : 32}px`,
+            borderBottom: '1px solid var(--border)',
+            background: 'var(--surface)',
+            position: 'sticky', top: 0, zIndex: 10,
+            boxShadow: 'var(--shadow-sm)',
+          }}>
+            <div style={{
+              display: 'flex', gap: 4, overflowX: 'auto', paddingTop: 12, paddingBottom: 12,
+              scrollbarWidth: 'none', msOverflowStyle: 'none',
+            }}>
+              {allGenres.map(g => (
+                <button
+                  key={g}
+                  onClick={() => { setGenre(g); setSearch(''); }}
+                  style={{
+                    flexShrink: 0, padding: isMobile ? '6px 14px' : '7px 18px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+                    background: genre === g && !search ? 'var(--accent)' : 'transparent',
+                    color: genre === g && !search ? 'white' : 'var(--text2)',
+                    border: genre === g && !search ? 'none' : '1.5px solid var(--border2)',
+                    boxShadow: genre === g && !search ? 'var(--shadow-accent)' : 'none',
+                    transition: 'all 0.15s', cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}
+                >{g}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Content */}
+          <div style={{ padding: isMobile ? '20px 16px' : '32px 32px' }}>
+            {search ? (
+              <div>
+                {isSearching ? (
+                  <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text3)' }}>
+                    <div style={{ fontSize: 13 }}>Đang tìm kiếm...</div>
+                  </div>
+                ) : searchResults.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text3)' }}>
+                    <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+                    <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Không tìm thấy truyện nào</div>
+                    <div style={{ fontSize: 13 }}>Thử từ khóa khác nhé</div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 8 }}>
+                      {searchResults.length} truyện được tìm thấy
+                    </div>
+                    {searchResults.map(b => <SearchResultItem key={b.id} book={b} onNavigate={onNavigate} />)}
+                  </>
+                )}
               </div>
             ) : (
               <>
-                <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 8 }}>
-                  {searchResults.length} truyện được tìm thấy
+              {/* Toolbar: title + sort + page size */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+                <div>
+                  <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.5, fontFamily: 'var(--font-display)' }}>
+                    {genre === 'Tất cả' ? 'Tất cả truyện' : genre}
+                  </h2>
+                  {totalBooks > 0 && (
+                    <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+                      {totalBooks} truyện · Trang {page}/{totalPages}
+                    </div>
+                  )}
                 </div>
-                {searchResults.map(b => <SearchResultItem key={b.id} book={b} onNavigate={onNavigate} />)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <select
+                    value={sortBy}
+                    onChange={e => setSortBy(e.target.value)}
+                    style={{ padding: '6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600, background: 'var(--surface2)', border: '1px solid var(--border2)', color: 'var(--text)', cursor: 'pointer' }}
+                  >
+                    <option value="read_count">Lượt đọc</option>
+                    <option value="rating">Đánh giá</option>
+                    <option value="chapter_count">Số chương</option>
+                    <option value="title">Tên A-Z</option>
+                  </select>
+                  <select
+                    value={pageSize}
+                    onChange={e => setPageSize(Number(e.target.value))}
+                    style={{ padding: '6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600, background: 'var(--surface2)', border: '1px solid var(--border2)', color: 'var(--text)', cursor: 'pointer' }}
+                  >
+                    {PAGE_SIZE_OPTIONS.map(n => (
+                      <option key={n} value={n}>{n} / trang</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                {loadingBooks ? (
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text3)' }}>
+                    <div style={{ fontSize: 13 }}>Đang tải...</div>
+                  </div>
+                ) : pagedBooks.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text3)' }}>
+                    <div style={{ fontSize: 32, marginBottom: 8 }}>📚</div>
+                    <div style={{ fontSize: 14 }}>Chưa có truyện thể loại này</div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: isMobile ? 'flex' : 'grid', flexDirection: isMobile ? 'column' : undefined, gridTemplateColumns: isMobile ? undefined : 'repeat(auto-fill, minmax(140px, 1fr))', gap: isMobile ? 0 : 20 }}>
+                      {pagedBooks.map(b => <BookCard key={b.id} book={b} onNavigate={onNavigate} />)}
+                    </div>
+
+                    {/* Pagination controls */}
+                    {totalPages > 1 && (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 32, flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => setPage(1)}
+                          disabled={page === 1}
+                          style={{ padding: '7px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, background: 'var(--surface2)', border: '1px solid var(--border2)', color: 'var(--text2)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1 }}
+                        >«</button>
+                        <button
+                          onClick={() => setPage(p => Math.max(1, p - 1))}
+                          disabled={page === 1}
+                          style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, background: 'var(--surface2)', border: '1px solid var(--border2)', color: 'var(--text2)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1 }}
+                        >‹ Trước</button>
+
+                        {/* Page number pills */}
+                        {Array.from({ length: totalPages }, (_, i) => i + 1)
+                          .filter(n => n === 1 || n === totalPages || Math.abs(n - page) <= 2)
+                          .reduce((acc, n, idx, arr) => {
+                            if (idx > 0 && n - arr[idx - 1] > 1) acc.push('...');
+                            acc.push(n);
+                            return acc;
+                          }, [])
+                          .map((n, i) => n === '...' ? (
+                            <span key={`ellipsis-${i}`} style={{ fontSize: 12, color: 'var(--text3)', padding: '0 4px' }}>…</span>
+                          ) : (
+                            <button
+                              key={n}
+                              onClick={() => setPage(n)}
+                              style={{
+                                width: 34, height: 34, borderRadius: 8, fontSize: 12, fontWeight: 700,
+                                background: page === n ? 'var(--accent)' : 'var(--surface2)',
+                                border: page === n ? 'none' : '1px solid var(--border2)',
+                                color: page === n ? 'white' : 'var(--text2)',
+                                cursor: 'pointer',
+                              }}
+                            >{n}</button>
+                          ))
+                        }
+
+                        <button
+                          onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                          disabled={page === totalPages}
+                          style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, background: 'var(--surface2)', border: '1px solid var(--border2)', color: 'var(--text2)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1 }}
+                        >Sau ›</button>
+                        <button
+                          onClick={() => setPage(totalPages)}
+                          disabled={page === totalPages}
+                          style={{ padding: '7px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, background: 'var(--surface2)', border: '1px solid var(--border2)', color: 'var(--text2)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1 }}
+                        >»</button>
+                      </div>
+                    )}
+
+                    {/* Page info */}
+                    {totalPages > 1 && (
+                      <div style={{ textAlign: 'center', marginTop: 12, fontSize: 12, color: 'var(--text3)' }}>
+                        Trang {page} / {totalPages} · {totalBooks} truyện
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
               </>
             )}
           </div>
-        ) : (
-          <>
-            {/* Book grid filtered by genre */}
-            <Section
-              title={genre === 'Tất cả' ? 'Tất cả truyện' : genre}
-              style={{ marginTop: 36 }}
-            >
-              {filtered.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text3)' }}>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>📚</div>
-                  <div style={{ fontSize: 14 }}>Chưa có truyện thể loại này</div>
-                </div>
-              ) : (
-                <div style={{ display: isMobile ? 'flex' : 'grid', flexDirection: isMobile ? 'column' : undefined, gridTemplateColumns: isMobile ? undefined : 'repeat(auto-fill, minmax(140px, 1fr))', gap: isMobile ? 0 : 20 }}>
-                  {filtered.map(b => <BookCard key={b.id} book={b} onNavigate={onNavigate} />)}
-                </div>
-              )}
-            </Section>
-          </>
+        </div>
+
+        {/* Right ad column — desktop only */}
+        {!isMobile && (
+          <div style={{
+            width: 160, flexShrink: 0,
+            position: 'sticky', top: 0,
+            height: 'calc(100vh - 0px)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            padding: '20px 8px', gap: 12,
+            borderLeft: '1px solid var(--border)',
+            background: 'var(--surface)',
+          }}>
+            <div style={{
+              width: 140, minHeight: 600, borderRadius: 10,
+              background: 'var(--surface2)',
+              border: '1px dashed var(--border2)',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}>
+              <span style={{ fontSize: 9, color: 'var(--text3)', letterSpacing: 1, textTransform: 'uppercase' }}>Quảng cáo</span>
+              {/* Thay bằng AdBanner khi có AdSense ID:
+              <AdBanner adClient="ca-pub-XXXXXXXX" adSlot="XXXXXXXX" width={140} height={600} />
+              */}
+            </div>
+          </div>
         )}
       </div>
     </div>
