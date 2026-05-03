@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Icons } from '../components/Icons.jsx';
 import { Pill, StarRating, BookCard, Section } from '../components/shared.jsx';
 import BookCover from '../components/BookCover.jsx';
@@ -114,6 +114,661 @@ function SearchResultItem({ book, onNavigate }) {
 
 const PAGE_SIZE_OPTIONS = [12, 24, 48];
 
+function HotWorksCarousel({ books, onNavigate, isMobile }) {
+  const [idx, setIdx] = useState(0);
+  const timer = useRef(null);
+  const hot = useMemo(() => {
+    return [...books]
+      .sort((a, b) => (parseInt((b.reads || '0').replace(/\D/g, '')) || 0) - (parseInt((a.reads || '0').replace(/\D/g, '')) || 0))
+      .slice(0, 8);
+  }, [books]);
+
+  const startTimer = () => {
+    clearInterval(timer.current);
+    timer.current = setInterval(() => {
+      setIdx(i => (i + 1) % Math.max(hot.length, 1));
+    }, 3800);
+  };
+
+  useEffect(() => {
+    if (hot.length <= 1) return;
+    startTimer();
+    return () => clearInterval(timer.current);
+  }, [hot.length]);
+
+  if (hot.length === 0) return null;
+
+  const center = hot[idx];
+  const goTo = (newIdx) => {
+    clearInterval(timer.current);
+    setIdx(((newIdx % hot.length) + hot.length) % hot.length);
+    startTimer();
+  };
+
+  // Compute relative offset (-N..+N) handling circular wrap
+  const relOffset = (i) => {
+    const half = Math.floor(hot.length / 2);
+    let d = i - idx;
+    if (d > half) d -= hot.length;
+    if (d < -half) d += hot.length;
+    return d;
+  };
+
+  // Map offset → visual transform / state
+  const slotStyle = (off) => {
+    const abs = Math.abs(off);
+    if (abs >= 3) return { display: 'none' };
+    const baseW = isMobile ? 130 : 150;
+    if (off === 0) {
+      return {
+        transform: 'translate(-50%, -50%) translateX(0px) rotate(0deg) scale(1)',
+        opacity: 1, zIndex: 5, filter: 'none',
+      };
+    }
+    const dir = off < 0 ? -1 : 1;
+    const layer = abs; // 1 or 2
+    const dist = layer === 1 ? (isMobile ? 78 : 100) : (isMobile ? 120 : 160);
+    const rot = dir * (layer === 1 ? 14 : 22);
+    const scale = layer === 1 ? 0.78 : 0.6;
+    const opacity = layer === 1 ? 0.72 : 0.25;
+    const zIndex = 5 - layer;
+    return {
+      transform: `translate(-50%, -50%) translateX(${dir * dist}px) rotate(${rot}deg) scale(${scale})`,
+      opacity, zIndex, filter: layer === 1 ? 'brightness(0.85)' : 'brightness(0.7) blur(1px)',
+    };
+  };
+
+  return (
+    <div style={{
+      background: 'var(--surface)', borderRadius: 16, padding: '20px 18px 22px',
+      border: '1px solid var(--border)', position: 'relative', overflow: 'hidden',
+    }}>
+      <style>{`
+        @keyframes hotPulse {
+          0%,100% { transform: translate(-50%,-50%) scale(1); }
+          50%     { transform: translate(-50%,-50%) scale(1.025); }
+        }
+        @keyframes hotFadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .hot-slot {
+          position: absolute; top: 50%; left: 50%;
+          transform-origin: center center;
+          transition:
+            transform 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+            opacity   0.55s cubic-bezier(0.22, 1, 0.36, 1),
+            filter    0.55s ease;
+          will-change: transform, opacity;
+          cursor: pointer;
+          border-radius: 10px;
+        }
+        .hot-slot.center {
+          box-shadow: 0 12px 32px rgba(0,0,0,0.35), 0 0 0 3px rgba(255,255,255,0.08);
+        }
+      `}</style>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, paddingBottom: 10, borderBottom: '2px solid var(--accent)' }}>
+        <h3 style={{ fontSize: 16, fontWeight: 800, letterSpacing: -0.3, fontFamily: 'var(--font-display)' }}>
+          🔥 Tác phẩm hot
+        </h3>
+        <span style={{ fontSize: 11, color: 'var(--text3)' }}>
+          {idx + 1} / {hot.length}
+        </span>
+      </div>
+
+      {/* Cover stack — all books rendered absolute, position derived from offset */}
+      <div style={{
+        height: isMobile ? 210 : 240, position: 'relative',
+        marginBottom: 18, perspective: 1000,
+      }}>
+        {hot.map((b, i) => {
+          const off = relOffset(i);
+          const isCenter = off === 0;
+          return (
+            <div
+              key={b.id}
+              className={`hot-slot${isCenter ? ' center' : ''}`}
+              onClick={() => isCenter ? onNavigate('detail', b) : goTo(i)}
+              style={slotStyle(off)}
+            >
+              <BookCover book={b} width={isMobile ? 130 : 150} radius={10} noEffect />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Center book info — fade-in on idx change via keyed div */}
+      <div
+        key={center.id}
+        style={{
+          textAlign: 'center',
+          animation: 'hotFadeIn 0.45s cubic-bezier(0.22, 1, 0.36, 1)',
+        }}
+      >
+        <div
+          onClick={() => onNavigate('detail', center)}
+          style={{
+            fontSize: 16, fontWeight: 800, letterSpacing: -0.4,
+            marginBottom: 4, cursor: 'pointer',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            fontFamily: 'var(--font-display)',
+          }}
+        >
+          {center.title}
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, marginBottom: 6 }}>
+          {center.author || 'Không rõ'}
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: 'var(--text2)' }}>
+          {center.reads || '0'} <span style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 500 }}>lượt đọc</span>
+        </div>
+        <div style={{
+          fontSize: 11, color: 'var(--text3)', lineHeight: 1.5,
+          marginBottom: 14, height: 32, overflow: 'hidden',
+          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+          padding: '0 4px',
+        }}>
+          {center.description || center.desc || 'Đang cập nhật mô tả...'}
+        </div>
+
+        <button
+          onClick={() => onNavigate('detail', center)}
+          style={{
+            padding: '8px 22px', borderRadius: 18, fontSize: 12, fontWeight: 700,
+            background: 'var(--accent)', color: 'white', cursor: 'pointer',
+            border: 'none', boxShadow: 'var(--shadow-accent)',
+          }}
+        >
+          Chi tiết truyện
+        </button>
+      </div>
+
+      {/* Dots */}
+      <div style={{ display: 'flex', gap: 4, justifyContent: 'center', marginTop: 14 }}>
+        {hot.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => goTo(i)}
+            style={{
+              width: i === idx ? 16 : 5, height: 5, borderRadius: 3,
+              background: i === idx ? 'var(--accent)' : 'var(--border2)',
+              transition: 'all 0.3s', cursor: 'pointer', padding: 0, border: 'none',
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Rankings: tabbed by audience, 4 ranking lists per tab (zongheng-style) ────
+function readsToInt(s) {
+  return parseInt(String(s || '0').replace(/\D/g, '')) || 0;
+}
+
+const RANK_TABS = [
+  { key: 'male',   label: 'Toàn site nam',    icon: '⚔️', accent: '#3B82F6',
+    genres: ['Tiên hiệp', 'Huyền huyễn', 'Đô thị', 'Lịch sử', 'Khoa huyễn', 'Võ hiệp',
+             'Quân sự', 'Tu chân', 'Tinh tế', 'Kiếm hiệp', 'Mạt thế', 'Dị giới'] },
+  { key: 'female', label: 'Toàn site nữ',     icon: '💕', accent: '#EC4899',
+    genres: ['Ngôn tình', 'Cổ trang', 'Cổ đại', 'Đam mỹ', 'Sủng', 'Nữ cường',
+             'Ngược', 'Trùng sinh', 'Xuyên không', 'Xuyên Nhanh'] },
+  { key: 'niche',  label: 'Đặc biệt / Khác',   icon: '✨', accent: '#A855F7',
+    genres: ['Trinh thám', 'Kinh dị', 'Linh dị', 'Game', 'Mạng du', 'Hệ thống',
+             'Đồng nhân', 'Hài hước', 'Kỳ huyễn', 'Ma pháp', 'Phương Tây', 'Khác'] },
+];
+
+const RANKING_DEFS = [
+  { key: 'bestseller', label: 'BXH 24h',       sub: 'Hot 24h',         metric: 'reads' },
+  { key: 'clicks',     label: 'Lượt click',    sub: 'Tuần này',        metric: 'reads' },
+  { key: 'recommend',  label: 'Đề cử',         sub: 'Đánh giá cao',    metric: 'rating' },
+  { key: 'channel',    label: 'BXH kênh',      sub: 'Top thể loại',    metric: 'reads' },
+];
+
+const MEDAL_STYLES = [
+  { bg: 'linear-gradient(135deg,#FFD700,#F59E0B)', text: '#7C2D12' }, // 1: gold
+  { bg: 'linear-gradient(135deg,#CBD5E1,#94A3B8)', text: '#1E293B' }, // 2: silver
+  { bg: 'linear-gradient(135deg,#D97706,#92400E)', text: '#FEF3C7' }, // 3: bronze
+];
+
+function LaurelWreath({ color = 'var(--accent)' }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+      <path d="M6 4 C 4 8, 4 14, 8 18 L 8 20 M 18 4 C 20 8, 20 14, 16 18 L 16 20 M 8 20 L 16 20"
+            stroke={color} strokeWidth="1.5" strokeLinecap="round" fill="none" />
+      <circle cx="6" cy="8"  r="1.4" fill={color} />
+      <circle cx="6" cy="13" r="1.4" fill={color} />
+      <circle cx="18" cy="8"  r="1.4" fill={color} />
+      <circle cx="18" cy="13" r="1.4" fill={color} />
+    </svg>
+  );
+}
+
+function RankingColumns({ books, onNavigate, isMobile }) {
+  const [tab, setTab] = useState('male');
+
+  const filtered = useMemo(() => {
+    const t = RANK_TABS.find(x => x.key === tab) || RANK_TABS[0];
+    const set = new Set(t.genres);
+    const inSet = books.filter(b => set.has(pickGenre(b.genre)));
+    // Fallback: if filter empty, use all books so UI still shows
+    return inSet.length > 0 ? inSet : books;
+  }, [books, tab]);
+
+  const ranks = useMemo(() => {
+    const byReads = [...filtered].sort((a, b) => readsToInt(b.reads) - readsToInt(a.reads));
+    const byRating = [...filtered].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+    const byNew = [...filtered].sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
+    return {
+      bestseller: byReads.slice(0, 6),
+      clicks:     byReads.slice(0, 6),
+      recommend:  byRating.slice(0, 6),
+      channel:    byNew.slice(0, 6),
+    };
+  }, [filtered]);
+
+  if (books.length === 0) return null;
+
+  const tabMeta = RANK_TABS.find(x => x.key === tab) || RANK_TABS[0];
+  const cols = isMobile ? 2 : 4;
+
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.5, fontFamily: 'var(--font-display)' }}>
+            Bảng xếp hạng tổng
+          </h2>
+          <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+            Top truyện hot · Phân theo độ tuổi & sở thích
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{
+        display: 'flex', gap: 0, marginBottom: 18,
+        borderBottom: '2px solid var(--border)',
+        flexWrap: 'wrap',
+      }}>
+        {RANK_TABS.map(t => {
+          const active = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              style={{
+                padding: '10px 18px', fontSize: 14, fontWeight: 700,
+                background: 'transparent', border: 'none',
+                color: active ? t.accent : 'var(--text2)',
+                cursor: 'pointer', position: 'relative',
+                display: 'flex', alignItems: 'center', gap: 6,
+                marginBottom: -2,
+                borderBottom: active ? `3px solid ${t.accent}` : '3px solid transparent',
+                transition: 'color 0.15s, border-color 0.15s',
+              }}
+            >
+              <span style={{ fontSize: 16 }}>{t.icon}</span>
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{
+        display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`,
+        gap: isMobile ? 12 : 16,
+      }}>
+        {RANKING_DEFS.map(def => {
+          const list = ranks[def.key] || [];
+          const top1 = list[0];
+          const rest = list.slice(1, 6);
+          return (
+            <div key={def.key} style={{
+              background: 'var(--surface)', borderRadius: 14,
+              padding: '14px 12px 12px', border: '1px solid var(--border)',
+              minWidth: 0,
+            }}>
+              {/* Header with laurel wreath */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                marginBottom: 12, paddingBottom: 10,
+                borderBottom: `2px solid ${tabMeta.accent}33`,
+              }}>
+                <LaurelWreath color={tabMeta.accent} />
+                <div style={{ textAlign: 'center', minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: -0.2, color: tabMeta.accent }}>
+                    {def.label}
+                  </div>
+                </div>
+                <LaurelWreath color={tabMeta.accent} />
+              </div>
+
+              {/* Top 1 with cover */}
+              {top1 && (
+                <div
+                  onClick={() => onNavigate('detail', top1)}
+                  style={{
+                    display: 'flex', gap: 10, padding: '8px 6px 10px',
+                    borderRadius: 8, marginBottom: 8, cursor: 'pointer',
+                    background: `${tabMeta.accent}0C`,
+                    transition: 'background 0.12s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = `${tabMeta.accent}1A`}
+                  onMouseLeave={e => e.currentTarget.style.background = `${tabMeta.accent}0C`}
+                >
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <BookCover book={top1} width={42} radius={5} noEffect />
+                    <span style={{
+                      position: 'absolute', top: -4, left: -4,
+                      width: 18, height: 18, borderRadius: 5,
+                      background: MEDAL_STYLES[0].bg, color: MEDAL_STYLES[0].text,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 10, fontWeight: 900,
+                      boxShadow: '0 2px 6px rgba(245,158,11,0.4)',
+                    }}>1</span>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.3, marginBottom: 4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                      {top1.title}
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {top1.author || 'Không rõ'}
+                    </div>
+                    <div style={{ fontSize: 10, color: tabMeta.accent, fontWeight: 700, marginTop: 2 }}>
+                      {def.metric === 'rating'
+                        ? `⭐ ${(top1.rating ?? 0).toFixed(1)}`
+                        : `${top1.reads || '0'} đọc`}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Rest 2-6 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {rest.map((b, i) => {
+                  const rank = i + 2; // 2..6
+                  const isMedal = rank <= 3;
+                  const medal = MEDAL_STYLES[rank - 1];
+                  return (
+                    <div
+                      key={b.id}
+                      onClick={() => onNavigate('detail', b)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        cursor: 'pointer', padding: '4px 4px',
+                        borderRadius: 5, transition: 'background 0.12s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <span style={{
+                        width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 9, fontWeight: 900,
+                        background: isMedal ? medal.bg : 'var(--surface2)',
+                        color: isMedal ? medal.text : 'var(--text3)',
+                      }}>
+                        {rank}
+                      </span>
+                      <span style={{
+                        flex: 1, fontSize: 12, color: 'var(--text2)',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        lineHeight: 1.6,
+                      }}>
+                        {b.title}
+                      </span>
+                      {def.metric === 'rating' && (
+                        <span style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>
+                          {(b.rating ?? 0).toFixed(1)}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+                {list.length === 0 && (
+                  <div style={{ fontSize: 11, color: 'var(--text3)', fontStyle: 'italic', padding: '8px 0', textAlign: 'center' }}>
+                    Chưa có dữ liệu
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Channels: group by audience (male/female/niche) ──────────────────────────
+const CHANNELS = [
+  {
+    key: 'male', label: 'Kênh Nam', icon: '⚔️', accent: '#3B82F6',
+    genres: ['Tiên hiệp', 'Huyền huyễn', 'Đô thị', 'Lịch sử', 'Khoa huyễn', 'Võ hiệp'],
+  },
+  {
+    key: 'female', label: 'Kênh Nữ', icon: '💕', accent: '#EC4899',
+    genres: ['Ngôn tình', 'Cổ trang', 'Đam mỹ', 'Hệ thống'],
+  },
+  {
+    key: 'niche', label: 'Kênh đặc biệt', icon: '✨', accent: '#A855F7',
+    genres: ['Trinh thám', 'Kinh dị', 'Game', 'Khác'],
+  },
+];
+
+function ChannelSection({ channel, books, onNavigate, isMobile }) {
+  const byGenre = useMemo(() => {
+    const m = {};
+    books.forEach(b => {
+      const g = pickGenre(b.genre);
+      if (!m[g]) m[g] = [];
+      m[g].push(b);
+    });
+    return m;
+  }, [books]);
+
+  const activeGenres = channel.genres.filter(g => byGenre[g]?.length > 0);
+  if (activeGenres.length === 0) return null;
+
+  const cols = isMobile ? 2 : Math.min(4, activeGenres.length);
+
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        marginBottom: 16, paddingBottom: 12,
+        borderBottom: `2px solid ${channel.accent}`,
+      }}>
+        <div style={{
+          width: 32, height: 32, borderRadius: 8,
+          background: `${channel.accent}22`, display: 'flex',
+          alignItems: 'center', justifyContent: 'center', fontSize: 18,
+        }}>{channel.icon}</div>
+        <h2 style={{ fontSize: 18, fontWeight: 800, letterSpacing: -0.4, fontFamily: 'var(--font-display)' }}>
+          {channel.label}
+        </h2>
+        <span style={{ fontSize: 11, color: 'var(--text3)', marginLeft: 'auto' }}>
+          {activeGenres.length} thể loại
+        </span>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: isMobile ? 12 : 18 }}>
+        {activeGenres.slice(0, cols * 2).map(g => {
+          const meta = GENRE_META[g] || { icon: '📖', prefix: g.slice(0, 4) };
+          const items = byGenre[g].slice(0, 5);
+          return (
+            <div key={g} style={{
+              background: 'var(--surface)', borderRadius: 12,
+              padding: '12px 12px', border: '1px solid var(--border)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
+                <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: -0.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g}</span>
+                <span style={{ fontSize: 16, flexShrink: 0, marginLeft: 6 }}>{meta.icon}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {items.map(b => (
+                  <div
+                    key={b.id}
+                    onClick={() => onNavigate('detail', b)}
+                    style={{ display: 'flex', gap: 6, alignItems: 'baseline', cursor: 'pointer', padding: '2px 0' }}
+                  >
+                    <span style={{ fontSize: 10, color: channel.accent, fontWeight: 700, flexShrink: 0, minWidth: 32 }}>
+                      {meta.prefix}
+                    </span>
+                    <span style={{ fontSize: 12, color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.5 }}>
+                      {b.title}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const GENRE_META = {
+  'Tiên hiệp':       { icon: '⛩️', sub: 'Tu tiên / Phi thăng',        prefix: 'Tiên' },
+  'Huyền huyễn':     { icon: '🐉', sub: 'Phong vân thiên hạ',         prefix: 'Huyễn' },
+  'Đô thị':          { icon: '🌆', sub: 'Hiện đại / Đời sống',         prefix: 'Đô' },
+  'Lịch sử':         { icon: '🏛️', sub: 'Cổ đại / Cung đấu',           prefix: 'Sử' },
+  'Khoa huyễn':      { icon: '🛸', sub: 'Sci-fi / Tinh tế',            prefix: 'Khoa' },
+  'Ngôn tình':       { icon: '💞', sub: 'Tình cảm lãng mạn',           prefix: 'Tình' },
+  'Game':            { icon: '🕹️', sub: 'Mạng du / Esports',           prefix: 'Game' },
+  'Trinh thám':      { icon: '🕵️', sub: 'Bí ẩn / Phá án',              prefix: 'Trinh' },
+  'Kinh dị':         { icon: '👻', sub: 'Khủng bố / Siêu nhiên',       prefix: 'Kinh' },
+  'Võ hiệp':         { icon: '🥋', sub: 'Giang hồ võ lâm',             prefix: 'Hiệp' },
+  'Đam mỹ':          { icon: '🌈', sub: 'BL / Đồng tính nam',           prefix: 'Đam' },
+  'Hệ thống':        { icon: '⚙️', sub: 'Game-like RPG',                prefix: 'Hệ' },
+  'Cổ đại':          { icon: '🏯', sub: 'Triều đình / Cổ trang',       prefix: 'Cổ' },
+  'Cổ trang':        { icon: '🪭', sub: 'Phong cách cổ trang',          prefix: 'Cổ' },
+  'Xuyên không':     { icon: '⏳', sub: 'Du hành thời không',           prefix: 'Xuyên' },
+  'Xuyên Nhanh':     { icon: '🌀', sub: 'Xuyên qua nhiều thế giới',     prefix: 'Nhanh' },
+  'Trùng sinh':      { icon: '🔄', sub: 'Sống lại / Báo thù',           prefix: 'Trùng' },
+  'Mạt thế':         { icon: '☢️', sub: 'Tận thế / Sinh tồn',           prefix: 'Mạt' },
+  'Linh dị':         { icon: '🔮', sub: 'Tâm linh / Huyền bí',          prefix: 'Linh' },
+  'Quân sự':         { icon: '🪖', sub: 'Chiến tranh / Quân đội',       prefix: 'Quân' },
+  'Sủng':            { icon: '🌹', sub: 'Ngọt ngào / Cưng chiều',       prefix: 'Sủng' },
+  'Dị giới':         { icon: '🌌', sub: 'Thế giới khác',                 prefix: 'Dị' },
+  'Mạng du':         { icon: '🎮', sub: 'MMORPG / Game online',         prefix: 'Mạng' },
+  'Nữ cường':        { icon: '👸', sub: 'Nữ chính mạnh mẽ',              prefix: 'Nữ' },
+  'Đồng nhân':       { icon: '✨', sub: 'Fanfic / Ngoại truyện',         prefix: 'Đồng' },
+  'Ngược':           { icon: '💔', sub: 'Bi kịch / Tổn thương',          prefix: 'Ngược' },
+  'Hài hước':        { icon: '😂', sub: 'Hài / Vui nhộn',               prefix: 'Hài' },
+  'Trọng sinh':      { icon: '♻️', sub: 'Tái sinh / Đầu thai',          prefix: 'Trọng' },
+  'Phương Tây':      { icon: '🏰', sub: 'Lâu đài / Trung cổ',           prefix: 'Tây' },
+  'Tu chân':         { icon: '🧘', sub: 'Tu luyện / Đạo gia',           prefix: 'Tu' },
+  'Tinh tế':         { icon: '🪐', sub: 'Vũ trụ / Hành tinh',           prefix: 'Tinh' },
+  'Kiếm hiệp':       { icon: '⚔️', sub: 'Kiếm khách / Giang hồ',        prefix: 'Kiếm' },
+  'Kỳ huyễn':        { icon: '🧚', sub: 'Tiên cảnh / Kỳ ảo',            prefix: 'Kỳ' },
+  'Ma pháp':         { icon: '🪄', sub: 'Phép thuật / Pháp sư',         prefix: 'Ma' },
+  'Khác':            { icon: '📖', sub: 'Thể loại khác',                  prefix: 'Khác' },
+};
+
+// Build case-insensitive lookup map: 'tiên hiệp' → 'Tiên hiệp'
+const GENRE_LOOKUP = Object.keys(GENRE_META).reduce((m, k) => {
+  m[k.toLowerCase().trim()] = k;
+  return m;
+}, {});
+
+// Normalize a book.genre string to a canonical GENRE_META key.
+// Splits multi-genre strings (e.g. "Đam Mỹ, Hệ Thống, Xuyên Nhanh") and picks first known match.
+function pickGenre(rawGenre) {
+  if (!rawGenre) return 'Khác';
+  const parts = String(rawGenre).split(/[,;|/]+/).map(s => s.trim()).filter(Boolean);
+  for (const p of parts) {
+    const hit = GENRE_LOOKUP[p.toLowerCase()];
+    if (hit) return hit;
+  }
+  return 'Khác';
+}
+
+function GenreColumns({ books, onNavigate, isMobile }) {
+  const byGenre = useMemo(() => {
+    const m = {};
+    books.forEach(b => {
+      const g = pickGenre(b.genre);
+      if (!m[g]) m[g] = [];
+      m[g].push(b);
+    });
+    return m;
+  }, [books]);
+
+  const orderedGenres = useMemo(() => {
+    const known = Object.keys(GENRE_META).filter(g => byGenre[g]?.length);
+    const others = Object.keys(byGenre).filter(g => !GENRE_META[g] && byGenre[g]?.length);
+    return [...known, ...others].slice(0, isMobile ? 4 : 8);
+  }, [byGenre, isMobile]);
+
+  if (orderedGenres.length === 0) return null;
+
+  const cols = isMobile ? 2 : 4;
+
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.5, fontFamily: 'var(--font-display)' }}>
+            Khám phá theo thể loại
+          </h2>
+          <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+            {orderedGenres.length} thể loại nổi bật · Truyện hot mỗi danh mục
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: isMobile ? 16 : 24 }}>
+        {orderedGenres.map(g => {
+          const meta = GENRE_META[g] || { icon: '📖', sub: '', prefix: g.slice(0, 4) };
+          const items = byGenre[g].slice(0, 5);
+          return (
+            <div key={g} style={{ background: 'var(--surface)', borderRadius: 14, padding: '16px 14px', border: '1px solid var(--border)', transition: 'all 0.15s' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, paddingBottom: 10, borderBottom: '1.5px solid var(--border)' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div onClick={() => onNavigate('home', null, null, g)} style={{ fontSize: 14, fontWeight: 800, letterSpacing: -0.3, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {g}
+                  </div>
+                  {meta.sub && (
+                    <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {meta.sub}
+                    </div>
+                  )}
+                </div>
+                <div style={{ fontSize: 22, flexShrink: 0, marginLeft: 6 }}>{meta.icon}</div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {items.map(b => (
+                  <div
+                    key={b.id}
+                    onClick={() => onNavigate('detail', b)}
+                    style={{ display: 'flex', gap: 6, alignItems: 'baseline', cursor: 'pointer', transition: 'color 0.12s' }}
+                    onMouseEnter={e => e.currentTarget.querySelector('.title').style.color = 'var(--accent)'}
+                    onMouseLeave={e => e.currentTarget.querySelector('.title').style.color = 'var(--text2)'}
+                  >
+                    <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700, flexShrink: 0, minWidth: 36 }}>
+                      {meta.prefix}
+                    </span>
+                    <span className="title" style={{ fontSize: 13, color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.5 }}>
+                      {b.title}
+                    </span>
+                  </div>
+                ))}
+                {items.length === 0 && (
+                  <div style={{ fontSize: 11, color: 'var(--text3)', fontStyle: 'italic' }}>Chưa có truyện</div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function HomeScreen({ onNavigate, books = [], genres = [], readProgress = {} }) {
   const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
@@ -191,7 +846,10 @@ export default function HomeScreen({ onNavigate, books = [], genres = [], readPr
       })
       .catch(() => {
         // Fallback: filter from App-level books if API not yet paginated
-        const all = genre === 'Tất cả' ? books : books.filter(b => b.genre === genre);
+        const norm = genre.toLowerCase().trim();
+        const all = genre === 'Tất cả'
+          ? books
+          : books.filter(b => String(b.genre || '').toLowerCase().includes(norm));
         const start = (page - 1) * pageSize;
         setPagedBooks(all.slice(start, start + pageSize));
         setTotalPages(Math.ceil(all.length / pageSize));
@@ -402,6 +1060,7 @@ export default function HomeScreen({ onNavigate, books = [], genres = [], readPr
               <div style={{
                 animation: animPhase === 'exit'  ? 'slideExitLeft   0.34s cubic-bezier(0.4,0,1,1)   forwards' :
                            animPhase === 'enter' ? 'slideEnterRight 0.42s cubic-bezier(0,0,0.2,1)   forwards' : 'none',
+                minHeight: isMobile ? 130 : 240,
               }}>
                 {isMobile ? (
                   <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
@@ -412,10 +1071,16 @@ export default function HomeScreen({ onNavigate, books = [], genres = [], readPr
                       )}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'nowrap', overflow: 'hidden', height: 22 }}>
                         {featured.tags.slice(0,2).map(t => <Pill key={t} label={t} />)}
                       </div>
-                      <h2 style={{ fontSize: 20, fontWeight: 800, color: 'white', letterSpacing: -0.8, lineHeight: 1.2, fontFamily: 'var(--font-display)', marginBottom: 10 }}>
+                      <h2 style={{
+                        fontSize: 20, fontWeight: 800, color: 'white',
+                        letterSpacing: -0.8, lineHeight: 1.2,
+                        fontFamily: 'var(--font-display)', marginBottom: 10,
+                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden', height: 48,
+                      }}>
                         {featured.title}
                       </h2>
                       <div style={{ display: 'flex', gap: 10 }}>
@@ -434,14 +1099,25 @@ export default function HomeScreen({ onNavigate, books = [], genres = [], readPr
                         <div style={{ position: 'absolute', inset: -4, borderRadius: 20, border: '2px solid rgba(255,215,0,0.8)', boxShadow: '0 0 24px rgba(255,215,0,0.4), inset 0 0 16px rgba(255,215,0,0.05)', pointerEvents: 'none', animation: 'goldShimmer 1.8s ease-in-out infinite' }} />
                       )}
                     </div>
-                    <div style={{ flex: 1, paddingTop: 8 }}>
-                      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-                        {featured.tags.map(t => <Pill key={t} label={t} />)}
+                    <div style={{ flex: 1, paddingTop: 8, minWidth: 0 }}>
+                      <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'nowrap', overflow: 'hidden', height: 24 }}>
+                        {featured.tags.slice(0, 4).map(t => <Pill key={t} label={t} />)}
                       </div>
-                      <h2 style={{ fontSize: 36, fontWeight: 800, color: 'white', letterSpacing: -1.5, lineHeight: 1.1, fontFamily: 'var(--font-display)', marginBottom: 10 }}>
+                      <h2 style={{
+                        fontSize: 36, fontWeight: 800, color: 'white',
+                        letterSpacing: -1.5, lineHeight: 1.1,
+                        fontFamily: 'var(--font-display)', marginBottom: 10,
+                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden', height: 80,
+                      }}>
                         {featured.title}
                       </h2>
-                      <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', lineHeight: 1.7, marginBottom: 16, maxWidth: 440 }}>
+                      <p style={{
+                        fontSize: 14, color: 'rgba(255,255,255,0.65)',
+                        lineHeight: 1.7, marginBottom: 16, maxWidth: 440,
+                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden', height: 48,
+                      }}>
                         {featured.desc?.slice(0, 140)}...
                       </p>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20 }}>
@@ -536,6 +1212,29 @@ export default function HomeScreen({ onNavigate, books = [], genres = [], readPr
               </div>
             ) : (
               <>
+              {/* Zongheng-style discovery sections — only on "Tất cả" view */}
+              {genre === 'Tất cả' && books.length > 0 && (
+                <>
+                  {/* Row 1: HotWorks sidebar + Rankings (4 columns) */}
+                  <div style={{
+                    display: 'flex', gap: isMobile ? 16 : 24,
+                    marginBottom: 32,
+                    flexDirection: isMobile ? 'column' : 'row',
+                    alignItems: 'flex-start',
+                  }}>
+                    <div style={{ width: isMobile ? '100%' : 280, flexShrink: 0 }}>
+                      <HotWorksCarousel books={books} onNavigate={onNavigate} isMobile={isMobile} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <RankingColumns books={books} onNavigate={onNavigate} isMobile={isMobile} />
+                    </div>
+                  </div>
+
+                  {/* Row 2: Genre columns (general discovery, all genres) */}
+                  <GenreColumns books={books} onNavigate={onNavigate} isMobile={isMobile} />
+                </>
+              )}
+
               {/* Toolbar: title + sort + page size */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
                 <div>

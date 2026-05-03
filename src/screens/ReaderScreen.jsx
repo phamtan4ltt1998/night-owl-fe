@@ -5,8 +5,8 @@ import BookCover from '../components/BookCover.jsx';
 import { api } from '../api.js';
 import { useIsMobile } from '../hooks/useIsMobile.js';
 
-const BACKGROUNDS = { white:'#FFFFFF', parchment:'#FAF3E0', slate:'#1E2A3A', dark:'#0D0D0D' };
-const TEXT_COLORS  = { white:'#1D1D1F', parchment:'#3D2B1F', slate:'#E8F0F8', dark:'#F0F0F0' };
+const BACKGROUNDS = { white:'#FFFFFF', parchment:'#FAF3E0', sepia:'#D4C5A9', slate:'#1E2A3A', dark:'#0D0D0D' };
+const TEXT_COLORS  = { white:'#1D1D1F', parchment:'#3D2B1F', sepia:'#5C4A2E', slate:'#E8F0F8', dark:'#F0F0F0' };
 const UNLOCK_COST = 5;
 
 function ChapterPicker({ chapters, current, isDark, txtColor, isMobile, onSelect, onClose }) {
@@ -163,14 +163,14 @@ function ReaderSetting({ label, children, color='var(--text)' }) {
   );
 }
 
-export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, onBack, onHome, onChapterChange, user, onUserUpdate, autoAdvance=true, fontSize=17, onFontSizeChange, books=[], onNavigate, pageFlip=false, onPageFlipChange }) {
+export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, onBack, onHome, onChapterChange, user, onUserUpdate, autoAdvance=true, fontSize=17, onFontSizeChange, bgMode='white', onBgModeChange, books=[], onNavigate, pageFlip=false, onPageFlipChange }) {
   const isMobile = useIsMobile();
   const [showSettings, setShowSettings] = useState(false);
   const [showChapters, setShowChapters] = useState(false);
   const [chapter, setChapter]           = useState(chapterIdx);
   const setFontSize = (fn) => onFontSizeChange(typeof fn === 'function' ? fn(fontSize) : fn);
+  const setBgMode = (mode) => onBgModeChange?.(mode);
   const [fontFamily, setFontFamily]     = useState('serif');
-  const [bgMode, setBgMode]             = useState(dark ? 'dark' : 'white');
   const [lineH, setLineH]               = useState(1.85);
   const [chapters, setChapters]         = useState([]);
   const [sessionToken, setSessionToken] = useState(null); // null = not yet fetched, '' = disabled by server
@@ -723,14 +723,26 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
           </ReaderSetting>
 
           <ReaderSetting label="Màu nền">
-            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-              {Object.entries(BACKGROUNDS).map(([k,v])=>(
-                <button key={k} onClick={()=>setBgMode(k)} style={{
-                  width:44,height:30,borderRadius:8,background:v,cursor:'pointer',
-                  border:bgMode===k?'2.5px solid var(--accent)':'2px solid rgba(128,128,128,0.25)',
-                  boxShadow:bgMode===k?'0 0 0 3px var(--accent-bg)':'none',
-                }}/>
-              ))}
+            <div style={{ display:'flex', gap:12, flexWrap:'wrap', alignItems:'flex-start' }}>
+              {Object.entries(BACKGROUNDS).map(([k,v])=>{
+                const labels = { white:'Trắng', parchment:'Nâu nhạt', sepia:'Giấy cũ', slate:'Xanh đen', dark:'Đen' };
+                return (
+                  <div key={k} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
+                    <button
+                      onClick={()=>setBgMode(k)}
+                      title={labels[k]}
+                      style={{
+                        width:44,height:30,borderRadius:8,background:v,cursor:'pointer',
+                        border:bgMode===k?'2.5px solid var(--accent)':'2px solid rgba(128,128,128,0.25)',
+                        boxShadow:bgMode===k?'0 0 0 3px var(--accent-bg)':'none',
+                      }}
+                    />
+                    <span style={{ fontSize:9, color: isDark?'rgba(255,255,255,0.5)':'rgba(0,0,0,0.5)', textAlign:'center', minWidth:50 }}>
+                      {labels[k]}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </ReaderSetting>
         </div>

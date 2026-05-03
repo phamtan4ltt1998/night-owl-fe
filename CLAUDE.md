@@ -28,11 +28,12 @@ Screens with Sidebar: `home`, `library`, `foreign`, `audio`, `profile`, `notific
 Single module. All requests go to `http://localhost:8000` directly (also proxied via Vite `/api` → `localhost:8000`). JWT stored in `localStorage` key `nightowl_token` via the `token` helper. On 401, fires `nightowl:unauthorized` custom event → App auto-logs out user.
 
 Key API domains:
-- Books: `getBooks`, `searchBooks`, `getBook`, `getChapters`, `getChapterContent`
+- Books: `getBooks`, `searchBooks`, `getBook`, `getChapters`, `getChapterContent` (note: content already cleaned on backend — no title duplication, links stripped)
 - TTS/Audio: `getChapterAudioStatus`, `getChapterAudioUrl`, `generateChapterAudio`
 - Auth: `googleLogin`, `facebookLogin`
 - User/economy: `getUserProfile`, `updateUserProfile`, `purchaseLinhThach`, `claimDailyReward`, `unlockChapter`
 - Reading history: `updateReadingProgress`, `getReadingHistory`
+- Inline comments: `getCommentCounts`, `getParagraphComments`, `postInlineComment`, `deleteInlineComment` (Wattpad-style paragraph comments — needs `chapter.id` from `getChapters` response)
 
 ### In-app currency
 
@@ -45,6 +46,17 @@ Google OAuth via `@react-oauth/google`. Facebook via SDK loaded globally in `ind
 ### Styling
 
 All styles are inline objects. Theme via CSS custom properties (`--accent`, `--surface`, `--border`, etc.) defined in `index.html` or a global stylesheet. Dark mode toggled by adding `class="dark"` to `<html>`. Fonts: Bricolage Grotesque (display), Inter (body), loaded from Google Fonts.
+
+### Reader background modes
+
+`ReaderScreen` offers 5 reading background options (settings panel → "Màu nền"):
+- **White** (`#FFFFFF`) — bright, high contrast
+- **Parchment** (`#FAF3E0`) — warm cream tone
+- **Sepia** (`#D4C5A9`) — old paper/aged manuscript feel; paired with warm brown text (`#5C4A2E`)
+- **Slate** (`#1E2A3A`) — cool dark blue
+- **Dark** (`#0D0D0D`) — pure black
+
+Selection persisted to localStorage (`nightowl_web.bgMode`). Managed at App level via `bgMode` state.
 
 ### Key files
 

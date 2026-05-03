@@ -105,7 +105,11 @@ export default function Sidebar({ active, onNavigate, user, dark, onToggleDark, 
       <style>{SIDEBAR_STYLES}</style>
       {/* Logo + collapse toggle */}
       <div style={{ padding: '24px 14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, overflow: 'hidden' }}>
+        <div
+          onClick={() => onNavigate('home')}
+          title="Về trang chính"
+          style={{ display: 'flex', alignItems: 'center', gap: 10, overflow: 'hidden', cursor: 'pointer' }}
+        >
           <img src="/logo_main.png" alt="NightOwl" style={{
             width: 36, height: 36, borderRadius: 10, flexShrink: 0,
             objectFit: 'cover', animation: 'logoGlow 2.4s ease-in-out infinite',

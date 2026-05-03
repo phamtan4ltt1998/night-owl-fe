@@ -57,6 +57,13 @@ async function post(path, body) {
   return res.json();
 }
 
+async function del(path) {
+  const res = await fetch(`${BASE}${path}`, { method: 'DELETE', headers: authHeaders() });
+  handle401(res);
+  if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
+  return res.json();
+}
+
 export const api = {
   getBooks: (genre) => get(genre ? `/books?genre=${encodeURIComponent(genre)}` : '/books'),
   getBooksPaged: ({ page = 1, pageSize = 24, genre, sortBy = 'read_count', sortOrder = 'desc' } = {}) => {
@@ -103,4 +110,16 @@ export const api = {
     post('/user/reading-progress', { email, book_id: bookId, chapter_number: chapterNumber }),
   getReadingHistory: (email) =>
     get(`/user/reading-history/${encodeURIComponent(email)}`),
+
+  // Inline comments (Wattpad-style paragraph comments)
+  getCommentCounts: (bookId, chapterNumber) =>
+    get(`/books/${bookId}/chapters/${chapterNumber}/comment-counts`),
+  getParagraphComments: (bookId, chapterNumber, paragraphId, { page = 1, limit = 10 } = {}) => {
+    const params = new URLSearchParams({ page, limit });
+    return get(`/books/${bookId}/chapters/${chapterNumber}/paragraphs/${encodeURIComponent(paragraphId)}/comments?${params}`);
+  },
+  postInlineComment: (chapterId, paragraphId, content, parentId = null) =>
+    post('/comments/inline', { chapter_id: chapterId, paragraph_id: paragraphId, content, parent_id: parentId }),
+  deleteInlineComment: (commentId) =>
+    del(`/comments/inline/${commentId}`),
 };
