@@ -539,14 +539,37 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
           {Icons.compass(16)}
         </button>
 
-        {/* Center: chapter select button — compact, centered */}
-        <div style={{ flex:1, display:'flex', justifyContent:'center', minWidth:0 }}>
+        {/* Center: book title + chapter select — stacked vertically */}
+        <div style={{
+          flex:1, display:'flex', flexDirection:'column',
+          alignItems:'center', justifyContent:'center', minWidth:0, gap:2,
+        }}>
+          {/* Book title (clickable → detail) */}
+          <button
+            onClick={() => onNavigate?.('detail', book)}
+            title={book.title}
+            style={{
+              maxWidth: isMobile ? 200 : 320,
+              fontSize: isMobile ? 11 : 12,
+              fontWeight: 700, letterSpacing: -0.2,
+              color: isDark ? 'rgba(255,255,255,0.85)' : 'var(--text)',
+              background: 'none', border: 'none',
+              cursor: 'pointer', padding: '0 6px',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              fontFamily: 'var(--font-display)',
+              lineHeight: 1.2,
+            }}
+          >
+            {book.title}
+          </button>
+
+          {/* Chapter selector pill */}
           <button
             onClick={() => { setShowChapters(s=>!s); setShowSettings(false); }}
             style={{
               cursor:'pointer', maxWidth: isMobile ? 180 : 260,
               display:'flex', alignItems:'center', gap:6,
-              padding:'5px 10px 5px 6px', borderRadius:20,
+              padding:'4px 10px 4px 5px', borderRadius:20,
               background: showChapters
                 ? 'var(--accent)'
                 : (isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)'),
@@ -569,8 +592,8 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
 
             {/* Chapter title */}
             <span style={{
-              fontSize:12, fontWeight:600,
-              color: showChapters ? 'white' : txtColor,
+              fontSize:11, fontWeight:600,
+              color: showChapters ? 'white' : (isDark ? 'rgba(255,255,255,0.7)' : 'var(--text2)'),
               overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
             }}>
               {ch.title}
