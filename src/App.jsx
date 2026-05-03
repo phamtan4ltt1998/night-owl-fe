@@ -25,6 +25,7 @@ export default function App() {
   const [detail,       setDetail]       = useState(null); // { book, chIdx }
   const [dark,         setDark]         = useState(stored.dark || false);
   const [fontSize,     setFontSize]     = useState(stored.fontSize || 17);
+  const [bgMode,       setBgMode]       = useState(stored.bgMode || 'white');
   const [showTweaks,   setShowTweaks]   = useState(false);
   const [books,        setBooks]        = useState([]);
   const [genres,       setGenres]       = useState([]);
@@ -46,13 +47,14 @@ export default function App() {
       screen: ['reader','audiobook','detail'].includes(screen) ? (stored.screen||'home') : screen,
       dark,
       fontSize,
+      bgMode,
       savedBooks: [...savedBooks],
       readProgress,
       autoAdvance,
       savePosition,
       pageFlip,
     }));
-  },[user, screen, dark, fontSize, savedBooks, readProgress, autoAdvance, savePosition, pageFlip]);
+  },[user, screen, dark, fontSize, bgMode, savedBooks, readProgress, autoAdvance, savePosition, pageFlip]);
 
   useEffect(()=>{
     const handler = e => {
@@ -125,7 +127,7 @@ export default function App() {
 
   // Fullscreen screens — no sidebar
   if (screen==='reader' && detail) {
-    return <ReaderScreen book={detail.book} chapterIdx={detail.chIdx??0} dark={dark} onToggleDark={()=>setDark(d=>!d)} onBack={()=>setScreen('detail')} onHome={()=>navigate('home')} onChapterChange={chIdx=>saveChapterProgress(detail.book.id, chIdx)} user={user} onUserUpdate={u=>setUser(u)} autoAdvance={autoAdvance} fontSize={fontSize} onFontSizeChange={setFontSize} books={books} onNavigate={navigate} pageFlip={pageFlip} onPageFlipChange={setPageFlip}/>;
+    return <ReaderScreen book={detail.book} chapterIdx={detail.chIdx??0} dark={dark} onToggleDark={()=>setDark(d=>!d)} onBack={()=>setScreen('detail')} onHome={()=>navigate('home')} onChapterChange={chIdx=>saveChapterProgress(detail.book.id, chIdx)} user={user} onUserUpdate={u=>setUser(u)} autoAdvance={autoAdvance} fontSize={fontSize} onFontSizeChange={setFontSize} bgMode={bgMode} onBgModeChange={setBgMode} books={books} onNavigate={navigate} pageFlip={pageFlip} onPageFlipChange={setPageFlip}/>;
   }
 
   const activeTab = ['home','library','foreign','audio','profile'].includes(screen) ? screen : 'home';
