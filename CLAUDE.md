@@ -33,7 +33,10 @@ Key API domains:
 - Auth: `googleLogin`, `facebookLogin`
 - User/economy: `getUserProfile`, `updateUserProfile`, `purchaseLinhThach`, `claimDailyReward`, `unlockChapter`
 - Reading history: `updateReadingProgress`, `getReadingHistory`
-- Inline comments: `getCommentCounts`, `getParagraphComments`, `postInlineComment`, `deleteInlineComment` (Wattpad-style paragraph comments — needs `chapter.id` from `getChapters` response)
+- Comments (paragraph + chapter):
+  - Inline: `getCommentCounts`, `getParagraphComments`, `postInlineComment`, `deleteInlineComment`
+  - End-of-chapter: `getChapterComments`, `postChapterComment` (wrappers using `paragraph_id="_chapter"` sentinel; reuse `deleteInlineComment` to delete)
+  - Posting requires `chapter.id` from `getChapters` response (DB id, not chapter number)
 
 ### In-app currency
 
@@ -46,6 +49,15 @@ Google OAuth via `@react-oauth/google`. Facebook via SDK loaded globally in `ind
 ### Styling
 
 All styles are inline objects. Theme via CSS custom properties (`--accent`, `--surface`, `--border`, etc.) defined in `index.html` or a global stylesheet. Dark mode toggled by adding `class="dark"` to `<html>`. Fonts: Bricolage Grotesque (display), Inter (body), loaded from Google Fonts.
+
+### Reader comments UI
+
+`ReaderScreen` renders both comment modes:
+- **Inline (paragraph)**: each `<p>` wrapped in `.reader-para-wrap`. 💬 bubble in right gutter (desktop) or top-right corner (mobile). Hover-reveal when count=0; always-visible badge when count>0. Click → side panel slides from right (desktop) or bottom sheet (mobile).
+- **End-of-chapter**: full discussion thread rendered below `— Hết {title} —` separator. Pinned input at top, comment cards below. No drawer/sheet — inline section.
+- Both use the same `inline_comments` table; chapter mode uses `paragraph_id="_chapter"` sentinel.
+- Optimistic updates on post/delete; counts in `commentCounts` state map updated locally.
+- Login-gated: anonymous users see comment counts but get "Đăng nhập để bình luận" instead of input.
 
 ### Reader background modes
 

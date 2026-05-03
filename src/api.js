@@ -122,4 +122,12 @@ export const api = {
     post('/comments/inline', { chapter_id: chapterId, paragraph_id: paragraphId, content, parent_id: parentId }),
   deleteInlineComment: (commentId) =>
     del(`/comments/inline/${commentId}`),
+
+  // End-of-chapter comments (uses paragraph_id="_chapter" sentinel)
+  getChapterComments: (bookId, chapterNumber, { page = 1, limit = 20 } = {}) => {
+    const params = new URLSearchParams({ page, limit });
+    return get(`/books/${bookId}/chapters/${chapterNumber}/paragraphs/_chapter/comments?${params}`);
+  },
+  postChapterComment: (chapterId, content, parentId = null) =>
+    post('/comments/inline', { chapter_id: chapterId, paragraph_id: '_chapter', content, parent_id: parentId }),
 };
