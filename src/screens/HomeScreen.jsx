@@ -745,14 +745,14 @@ function GenreColumns({ books, onNavigate, isMobile }) {
                   <div
                     key={b.id}
                     onClick={() => onNavigate('detail', b)}
-                    style={{ display: 'flex', gap: 6, alignItems: 'baseline', cursor: 'pointer', transition: 'color 0.12s' }}
+                    style={{ display: 'flex', gap: 6, alignItems: 'flex-start', cursor: 'pointer', transition: 'color 0.12s' }}
                     onMouseEnter={e => e.currentTarget.querySelector('.title').style.color = 'var(--accent)'}
                     onMouseLeave={e => e.currentTarget.querySelector('.title').style.color = 'var(--text2)'}
                   >
                     <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700, flexShrink: 0, minWidth: 36 }}>
                       {meta.prefix}
                     </span>
-                    <span className="title" style={{ fontSize: 13, color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.5 }}>
+                    <span className="title" style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5, wordBreak: 'break-word' }}>
                       {b.title}
                     </span>
                   </div>
