@@ -856,7 +856,7 @@ export default function HomeScreen({ onNavigate, books = [], genres = [], readPr
         setTotalBooks(all.length);
       })
       .finally(() => setLoadingBooks(false));
-  }, [page, pageSize, genre, search, books]);
+  }, [page, pageSize, genre, sortBy, search, books]);
 
   // Reset to page 1 when genre, pageSize, or sortBy changes
   useEffect(() => { setPage(1); }, [genre, pageSize, sortBy]);

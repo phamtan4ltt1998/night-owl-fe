@@ -36,7 +36,9 @@ export default function App() {
   const [pageFlip,      setPageFlip]      = useState(stored.pageFlip     ?? false);
 
   useEffect(() => {
-    api.getBooks().then(setBooks).catch(console.error);
+    api.getBooksPaged({ page: 1, pageSize: 100, sortBy: 'read_count' })
+      .then(res => setBooks(Array.isArray(res) ? res : (res.data ?? [])))
+      .catch(console.error);
     api.getGenres().then(setGenres).catch(console.error);
   }, []);
 

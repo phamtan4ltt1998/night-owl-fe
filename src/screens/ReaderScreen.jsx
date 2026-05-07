@@ -241,7 +241,7 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
     if (contentRef.current) contentRef.current.scrollTop = 0;
     if (sessionToken === null) return; // still waiting for getChapters
     api.getChapterContent(book.id, ch.chapterNumber, sessionToken)
-      .then(data => setContent(data.content))
+      .then(data => setContent((data.content || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')))
       .catch(console.error);
     // Fetch comment counts in parallel
     api.getCommentCounts(book.id, ch.chapterNumber)
@@ -687,6 +687,7 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
                           textAlign:'justify',
                           fontFamily: fontFamily==='serif' ? 'Georgia, "Times New Roman", serif' : 'var(--font-body)',
                           fontSize, lineHeight:lineH, color:txtColor, textIndent:'2em',
+                          whiteSpace:'pre-line',
                           margin:0,
                           padding: isMobile ? '4px 0' : '4px 0',
                           borderRadius: 6,
