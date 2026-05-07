@@ -55,7 +55,11 @@
       "Bash(rtk read *)",
       "Bash(git clone *)",
       "Bash(rtk npm *)",
-      "Bash(node -e \"const ls=require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\);const d=JSON.parse\\(ls\\);console.log\\(d\\)\")"
+      "Bash(node -e \"const ls=require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\);const d=JSON.parse\\(ls\\);console.log\\(d\\)\")",
+      "WebFetch(domain:github.com)",
+      "Read(//Users/phamminhtan/Desktop/night-owl/night-owl/**)",
+      "Bash(python -c \"from app.clip_factory import schemas, hook_extractor, script_writer, caption_align, video_render, pipeline, routes; print\\('OK'\\)\")",
+      "Bash(ffmpeg -version)"
     ]
   }
 }
