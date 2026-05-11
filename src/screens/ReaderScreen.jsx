@@ -211,7 +211,7 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
   }, [user?.linh_thach]);
 
   useEffect(() => {
-    api.getChapters(book.id)
+    api.getAllChapters(book.id)
       .then(data => {
         setChapters(data.chapters ?? []);
         setSessionToken(data.session_token ?? '');

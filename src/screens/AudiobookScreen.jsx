@@ -93,7 +93,7 @@ export default function AudiobookScreen({ book, onBack }) {
   const pollRef    = useRef(null);
 
   useEffect(() => {
-    api.getChapters(book.id)
+    api.getAllChapters(book.id)
       .then(data => setChapters(data.chapters ?? []))
       .catch(console.error);
   }, [book.id]);

@@ -14,15 +14,42 @@ export default function DetailScreen({ book, onNavigate, onBack, isSaved=false, 
   const isMobile = useIsMobile();
   const [tab, setTab] = useState('chapters');
   const [chapters, setChapters] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [sortAsc, setSortAsc] = useState(true);
   const lastChapterIdx = readProgress[book.id] ?? null;
   const px = isMobile ? 16 : 48;
+  const PAGE_SIZE = 200;
 
   const sortedChapters = sortAsc ? chapters : [...chapters].reverse();
+  const hasMore = chapters.length < total;
 
   useEffect(() => {
-    api.getChapters(book.id).then(data => setChapters(data.chapters ?? [])).catch(console.error);
+    setChapters([]);
+    setTotal(0);
+    setPage(1);
+    api.getChapters(book.id, { page: 1, pageSize: PAGE_SIZE })
+      .then(data => {
+        setChapters(data.chapters ?? []);
+        setTotal(data.total ?? (data.chapters?.length ?? 0));
+      })
+      .catch(console.error);
   }, [book.id]);
+
+  const loadMoreChapters = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const data = await api.getChapters(book.id, { page: page + 1, pageSize: PAGE_SIZE });
+      setChapters(prev => [...prev, ...(data.chapters ?? [])]);
+      setPage(p => p + 1);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   return (
     <div style={{ height:'100%', overflowY:'auto', paddingBottom:40 }}>
@@ -154,12 +181,15 @@ export default function DetailScreen({ book, onNavigate, onBack, isSaved=false, 
         ) : (
           <div style={{ maxWidth:680 }}>
             <div style={{ display:'flex', justifyContent:'space-between', marginBottom:16, alignItems:'center' }}>
-              <span style={{ fontSize:13, color:'var(--text3)' }}>{chapters.length} chương</span>
+              <span style={{ fontSize:13, color:'var(--text3)' }}>{total || chapters.length} chương</span>
               <Btn size="sm" variant="secondary" onClick={() => setSortAsc(v => !v)}>
                 Sắp xếp {sortAsc ? '↑' : '↓'}
               </Btn>
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+              {(!sortAsc ? sortedChapters : chapters).length === 0 && (
+                <div style={{ textAlign:'center', padding:'40px 0', color:'var(--text3)' }}>Đang tải...</div>
+              )}
               {sortedChapters.map((ch, i) => {
                 const realIdx = sortAsc ? i : chapters.length - 1 - i;
                 const isLast = realIdx === lastChapterIdx;
@@ -193,6 +223,13 @@ export default function DetailScreen({ book, onNavigate, onBack, isSaved=false, 
                 );
               })}
             </div>
+            {hasMore && (
+              <div style={{ textAlign:'center', marginTop:16 }}>
+                <Btn size="sm" variant="secondary" onClick={loadMoreChapters} disabled={loadingMore}>
+                  {loadingMore ? 'Đang tải...' : `Tải thêm (${total - chapters.length} chương còn lại)`}
+                </Btn>
+              </div>
+            )}
           </div>
         )}
       </div>
