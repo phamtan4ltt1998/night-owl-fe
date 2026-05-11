@@ -4,12 +4,33 @@ import { api } from '../api.js';
 export default function NotificationScreen() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const LIMIT = 50;
 
   useEffect(() => {
-    api.getNotifications()
-      .then(setNotifications)
+    api.getNotifications({ limit: LIMIT })
+      .then(data => {
+        setNotifications(data);
+        setHasMore(data.length === LIMIT);
+      })
       .finally(() => setLoading(false));
   }, []);
+
+  const loadMore = async () => {
+    const oldest = notifications[notifications.length - 1];
+    if (!oldest || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const data = await api.getNotifications({ limit: LIMIT, beforeId: oldest.id });
+      setNotifications(prev => [...prev, ...data]);
+      setHasMore(data.length === LIMIT);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const unreadCount = notifications.filter(n => n.unread).length;
 
@@ -94,6 +115,21 @@ export default function NotificationScreen() {
             </div>
           </div>
         ))}
+        {hasMore && (
+          <button
+            onClick={loadMore}
+            disabled={loadingMore}
+            style={{
+              width: '100%', marginTop: 8, padding: '12px 0',
+              borderRadius: 10, border: '1px solid var(--border)',
+              background: 'var(--surface)', color: 'var(--text2)',
+              fontSize: 13, fontWeight: 600, cursor: loadingMore ? 'default' : 'pointer',
+              opacity: loadingMore ? 0.6 : 1,
+            }}
+          >
+            {loadingMore ? 'Đang tải...' : 'Tải thêm thông báo'}
+          </button>
+        )}
       </div>
     </div>
   );

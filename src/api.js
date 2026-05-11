@@ -77,11 +77,30 @@ export const api = {
     return get(`/books/search?${params}`);
   },
   getBook: (id) => get(`/books/${id}`),
-  getChapters: (bookId) => get(`/books/${bookId}/chapters`),
+  getChapters: (bookId, { page = 1, pageSize = 200 } = {}) =>
+    get(`/books/${bookId}/chapters?page=${page}&page_size=${pageSize}`),
+  getAllChapters: async (bookId) => {
+    const first = await get(`/books/${bookId}/chapters?page=1&page_size=500`);
+    const chapters = [...(first.chapters ?? [])];
+    const totalPages = first.total_pages ?? 1;
+    if (totalPages > 1) {
+      const rest = await Promise.all(
+        Array.from({ length: totalPages - 1 }, (_, i) =>
+          get(`/books/${bookId}/chapters?page=${i + 2}&page_size=500`)
+        )
+      );
+      rest.forEach(r => chapters.push(...(r.chapters ?? [])));
+    }
+    return { session_token: first.session_token, chapters, total: first.total };
+  },
   getChapterContent: (bookId, chapterNumber, sessionToken) =>
     get(`/books/${bookId}/chapters/${chapterNumber}/content?session_token=${encodeURIComponent(sessionToken)}`),
   getGenres: () => get('/genres'),
-  getNotifications: () => get('/notifications'),
+  getNotifications: ({ limit = 50, beforeId } = {}) => {
+    const params = new URLSearchParams({ limit });
+    if (beforeId) params.set('before_id', beforeId);
+    return get(`/notifications?${params}`);
+  },
   markRead: (id) => patch(`/notifications/${id}/read`),
   markAllRead: () => patch('/notifications/read-all'),
   getChapterAudioStatus: (storyName, chapterNumber) =>
