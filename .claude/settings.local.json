@@ -59,7 +59,10 @@
       "WebFetch(domain:github.com)",
       "Read(//Users/phamminhtan/Desktop/night-owl/night-owl/**)",
       "Bash(python -c \"from app.clip_factory import schemas, hook_extractor, script_writer, caption_align, video_render, pipeline, routes; print\\('OK'\\)\")",
-      "Bash(ffmpeg -version)"
+      "Bash(ffmpeg -version)",
+      "Bash(node --input-type=module --eval ' *)",
+      "Bash(node -e ' *)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('app/main.py'\\).read\\(\\)\\); print\\('OK'\\)\")"
     ]
   }
 }

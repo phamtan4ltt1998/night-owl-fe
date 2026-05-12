@@ -75,6 +75,15 @@ export const api = {
     const params = new URLSearchParams({ page: 1, page_size: limit, sort_by: 'updated_at', sort_order: 'desc' });
     return get(`/books/paged?${params}`);
   },
+
+  // Global ephemeral app comments
+  getGlobalComments: ({ limit = 50 } = {}) => {
+    const params = new URLSearchParams({ limit });
+    return get(`/comments/global?${params}`);
+  },
+  postGlobalComment: ({ content, context_hint = null } = {}) =>
+    post('/comments/global', { content, context_hint }),
+  deleteGlobalComment: (id) => del(`/comments/global/${id}`),
   searchBooks: (q, { genre, limit = 20, offset = 0 } = {}) => {
     const params = new URLSearchParams({ q, limit, offset });
     if (genre && genre !== 'Tất cả') params.set('genre', genre);

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { api, token as authToken } from './api.js';
 import { useIsMobile } from './hooks/useIsMobile.js';
 import Sidebar from './Sidebar.jsx';
+import GlobalChatFAB from './components/GlobalChatFAB.jsx';
 import TweaksPanel from './TweaksPanel.jsx';
 import LoginPage from './screens/LoginPage.jsx';
 import HomeScreen from './screens/HomeScreen.jsx';
@@ -119,6 +120,14 @@ export default function App() {
     }).catch(() => {});
   }, [user?.email]);
 
+  const contextHint = screen === 'reader' && detail
+    ? `đang đọc ${detail.book.title} · Ch.${(detail.chIdx ?? 0) + 1}`
+    : null;
+
+  const chatFAB = (
+    <GlobalChatFAB user={user} contextHint={contextHint} isMobile={isMobile} />
+  );
+
   if (!user) {
     return <LoginPage onLogin={(u, jwtToken) => {
       if (jwtToken) authToken.set(jwtToken);
@@ -129,7 +138,12 @@ export default function App() {
 
   // Fullscreen screens — no sidebar
   if (screen==='reader' && detail) {
-    return <ReaderScreen book={detail.book} chapterIdx={detail.chIdx??0} dark={dark} onToggleDark={()=>setDark(d=>!d)} onBack={()=>setScreen('detail')} onHome={()=>navigate('home')} onChapterChange={chIdx=>saveChapterProgress(detail.book.id, chIdx)} user={user} onUserUpdate={u=>setUser(u)} autoAdvance={autoAdvance} fontSize={fontSize} onFontSizeChange={setFontSize} bgMode={bgMode} onBgModeChange={setBgMode} books={books} onNavigate={navigate} pageFlip={pageFlip} onPageFlipChange={setPageFlip}/>;
+    return (
+      <>
+        <ReaderScreen book={detail.book} chapterIdx={detail.chIdx??0} dark={dark} onToggleDark={()=>setDark(d=>!d)} onBack={()=>setScreen('detail')} onHome={()=>navigate('home')} onChapterChange={chIdx=>saveChapterProgress(detail.book.id, chIdx)} user={user} onUserUpdate={u=>setUser(u)} autoAdvance={autoAdvance} fontSize={fontSize} onFontSizeChange={setFontSize} bgMode={bgMode} onBgModeChange={setBgMode} books={books} onNavigate={navigate} pageFlip={pageFlip} onPageFlipChange={setPageFlip}/>
+        {chatFAB}
+      </>
+    );
   }
 
   const activeTab = ['home','library','foreign','audio','profile'].includes(screen) ? screen : 'home';
@@ -183,6 +197,7 @@ export default function App() {
         </main>
         {sidebar}
         {showTweaks && <TweaksPanel dark={dark} onToggleDark={()=>setDark(d=>!d)} onClose={()=>setShowTweaks(false)}/>}
+        {chatFAB}
       </div>
     );
   }
@@ -194,6 +209,7 @@ export default function App() {
         {mainScreens}
       </main>
       {showTweaks && <TweaksPanel dark={dark} onToggleDark={()=>setDark(d=>!d)} onClose={()=>setShowTweaks(false)}/>}
+      {chatFAB}
     </div>
   );
 }
