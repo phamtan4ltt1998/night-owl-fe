@@ -674,7 +674,10 @@ export default function ReaderScreen({ book, chapterIdx=0, dark, onToggleDark, o
               {ch.title}
             </div>
             {content
-              ? content.split('\n\n').filter(p => p.trim()).map((p,i) => {
+              ? content
+                  .replace(/[ \t]*\n[ \t]*/g, '\n')
+                  .replace(/\n{3,}/g, '\n\n')
+                  .split('\n\n').filter(p => p.trim()).map((p,i) => {
                   const pid = `p${i}`;
                   const cnt = commentCounts[pid] || 0;
                   const isActive = activeParagraph === pid;
