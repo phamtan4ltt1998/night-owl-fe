@@ -71,6 +71,10 @@ export const api = {
     if (genre && genre !== 'Tất cả') params.set('genre', genre);
     return get(`/books/paged?${params}`);
   },
+  getRecentlyUpdated: ({ limit = 12 } = {}) => {
+    const params = new URLSearchParams({ page: 1, page_size: limit, sort_by: 'updated_at', sort_order: 'desc' });
+    return get(`/books/paged?${params}`);
+  },
   searchBooks: (q, { genre, limit = 20, offset = 0 } = {}) => {
     const params = new URLSearchParams({ q, limit, offset });
     if (genre && genre !== 'Tất cả') params.set('genre', genre);

@@ -769,6 +769,178 @@ function GenreColumns({ books, onNavigate, isMobile }) {
   );
 }
 
+function RecentlyUpdatedSection({ books: allBooks, onNavigate, isMobile }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    api.getRecentlyUpdated({ limit: 14 })
+      .then(res => {
+        const data = Array.isArray(res) ? res : (res.data ?? res.books ?? []);
+        setItems(data);
+      })
+      .catch(() => {
+        // Fallback: sort allBooks by id desc as proxy for "recently updated"
+        const fallback = [...allBooks]
+          .sort((a, b) => (b.id ?? 0) - (a.id ?? 0))
+          .slice(0, 14);
+        setItems(fallback);
+      })
+      .finally(() => setLoading(false));
+  }, [allBooks]);
+
+  if (!loading && items.length === 0) return null;
+
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <style>{`
+        @keyframes recentShimmer {
+          0% { background-position: -200px 0; }
+          100% { background-position: calc(200px + 100%) 0; }
+        }
+        .recent-card:hover .recent-title { color: var(--accent); }
+        .recent-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.18); }
+      `}</style>
+
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+        marginBottom: 14,
+      }}>
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.5, fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              width: 28, height: 28, borderRadius: 8,
+              background: 'linear-gradient(135deg,#F59E0B,#EF4444)',
+              fontSize: 14,
+            }}>🕐</span>
+            Mới cập nhật
+          </h2>
+          <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+            Truyện vừa có chương mới
+          </div>
+        </div>
+        <button
+          onClick={() => onNavigate('library')}
+          style={{
+            fontSize: 12, fontWeight: 600, color: 'var(--accent)',
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            padding: '4px 0', display: 'flex', alignItems: 'center', gap: 3,
+          }}
+        >
+          Xem thêm {'>'}
+        </button>
+      </div>
+
+      {/* Horizontal scroll strip */}
+      <div style={{
+        display: 'flex', gap: isMobile ? 10 : 14,
+        overflowX: 'auto', paddingBottom: 10,
+        scrollbarWidth: 'none', msOverflowStyle: 'none',
+      }}>
+        {loading
+          ? Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} style={{
+                flexShrink: 0,
+                width: isMobile ? 100 : 116,
+                borderRadius: 12,
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                overflow: 'hidden',
+              }}>
+                <div style={{
+                  height: isMobile ? 138 : 160,
+                  background: 'linear-gradient(90deg, var(--surface2) 0px, var(--border) 100px, var(--surface2) 200px)',
+                  backgroundSize: '400px 100%',
+                  animation: 'recentShimmer 1.4s ease-in-out infinite',
+                }} />
+                <div style={{ padding: '8px 8px 10px' }}>
+                  <div style={{ height: 10, borderRadius: 4, background: 'var(--surface2)', marginBottom: 6 }} />
+                  <div style={{ height: 10, borderRadius: 4, background: 'var(--surface2)', width: '65%' }} />
+                </div>
+              </div>
+            ))
+          : items.map(book => {
+              const genre = pickGenre(book.genre);
+              const meta = GENRE_META[genre] || { icon: '📖' };
+              return (
+                <div
+                  key={book.id}
+                  className="recent-card"
+                  onClick={() => onNavigate('detail', book)}
+                  style={{
+                    flexShrink: 0,
+                    width: isMobile ? 100 : 116,
+                    borderRadius: 12,
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    cursor: 'pointer',
+                    overflow: 'hidden',
+                    transition: 'transform 0.18s, box-shadow 0.18s',
+                    position: 'relative',
+                  }}
+                >
+                  {/* Cover */}
+                  <div style={{ position: 'relative' }}>
+                    <BookCover book={book} width={isMobile ? 100 : 116} radius={0} noEffect />
+                    {/* "Mới" badge */}
+                    <span style={{
+                      position: 'absolute', top: 6, left: 6,
+                      padding: '2px 7px', borderRadius: 6,
+                      fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
+                      background: 'linear-gradient(90deg,#EF4444,#F97316)',
+                      color: 'white',
+                      boxShadow: '0 2px 6px rgba(239,68,68,0.45)',
+                      textTransform: 'uppercase',
+                    }}>Mới</span>
+                    {/* Chapter count badge */}
+                    {book.chapters && (
+                      <span style={{
+                        position: 'absolute', bottom: 0, right: 0,
+                        padding: '3px 7px',
+                        fontSize: 10, fontWeight: 700,
+                        background: 'rgba(0,0,0,0.7)',
+                        color: 'rgba(255,255,255,0.9)',
+                        borderTopLeftRadius: 6,
+                      }}>
+                        {book.chapters} ch.
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div style={{ padding: '8px 8px 10px' }}>
+                    <div
+                      className="recent-title"
+                      style={{
+                        fontSize: 12, fontWeight: 700, lineHeight: 1.35,
+                        marginBottom: 5, color: 'var(--text)',
+                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden', transition: 'color 0.15s',
+                        minHeight: 32,
+                      }}
+                    >
+                      {book.title}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: 11 }}>{meta.icon}</span>
+                      <span style={{
+                        fontSize: 10, color: 'var(--text3)',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>{genre}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+        }
+      </div>
+    </div>
+  );
+}
+
 export default function HomeScreen({ onNavigate, books = [], genres = [], readProgress = {} }) {
   const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
@@ -1230,7 +1402,10 @@ export default function HomeScreen({ onNavigate, books = [], genres = [], readPr
                     </div>
                   </div>
 
-                  {/* Row 2: Genre columns (general discovery, all genres) */}
+                  {/* Row 2: Recently updated horizontal strip */}
+                  <RecentlyUpdatedSection books={books} onNavigate={onNavigate} isMobile={isMobile} />
+
+                  {/* Row 3: Genre columns (general discovery, all genres) */}
                   <GenreColumns books={books} onNavigate={onNavigate} isMobile={isMobile} />
                 </>
               )}
