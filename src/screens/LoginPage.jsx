@@ -84,17 +84,13 @@ export default function LoginPage({ onLogin }) {
       setLoading(true);
       setError('');
       try {
-        // Fetch user info from Google
-        const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: `Bearer ${access_token}` },
-        }).then(r => r.json());
-        // Sync user with BE, receive JWT
-        const res = await api.googleLogin(info);
+        // Backend verifies access_token with Google server-side
+        const res = await api.googleLogin({ access_token });
         onLogin(
           {
-            name: res.user?.name || info.name,
-            email: res.user?.email || info.email,
-            picture: res.user?.picture || info.picture || null,
+            name: res.user?.name,
+            email: res.user?.email,
+            picture: res.user?.picture || null,
           },
           res.access_token,
         );
