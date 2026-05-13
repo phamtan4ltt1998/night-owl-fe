@@ -949,6 +949,13 @@ export default function HomeScreen({ onNavigate, books = [], genres = [], readPr
   const [isSearching, setIsSearching] = useState(false);
   const debounceRef = useRef(null);
   const slideTimer = useRef(null);
+  const featuredLenRef = useRef(0);
+  const startTimer = () => {
+    clearInterval(slideTimer.current);
+    slideTimer.current = setInterval(() => {
+      setSlideIdx(i => (i + 1) % Math.max(featuredLenRef.current, 1));
+    }, 4000);
+  };
   const touchStartX = useRef(0);
   const px = isMobile ? 16 : 48;
 
@@ -996,6 +1003,7 @@ export default function HomeScreen({ onNavigate, books = [], genres = [], readPr
   }, []);
 
   useEffect(() => {
+    featuredLenRef.current = featuredBooks.length;
     if (featuredBooks.length <= 1) return;
     startTimer();
     return () => clearInterval(slideTimer.current);
