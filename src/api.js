@@ -75,6 +75,10 @@ export const api = {
     const params = new URLSearchParams({ page: 1, page_size: limit, sort_by: 'updated_at', sort_order: 'desc' });
     return get(`/books/paged?${params}`);
   },
+  getFeaturedBooks: ({ limit = 10, months = 3 } = {}) => {
+    const params = new URLSearchParams({ limit, months });
+    return get(`/books/featured?${params}`);
+  },
 
   // Global ephemeral app comments
   getGlobalComments: ({ limit = 50 } = {}) => {
