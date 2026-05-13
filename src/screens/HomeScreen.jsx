@@ -961,25 +961,39 @@ export default function HomeScreen({ onNavigate, books = [], genres = [], readPr
   const [totalBooks, setTotalBooks] = useState(0);
   const [loadingBooks, setLoadingBooks] = useState(false);
 
-  const featuredBooks = books.slice(0, 10);
+  const [featuredBooks, setFeaturedBooks] = useState([]);
   const [slideIdx, setSlideIdx] = useState(0);
   const [animPhase, setAnimPhase] = useState('idle');
+  const featuredLoadedRef = useRef(false);
+
+  const sortByRating = (arr) =>
+    [...arr].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 10);
 
   const isTienHiep = (book) =>
     book?.genre?.toLowerCase().includes('tiên hiệp') ||
     book?.tags?.some(t => t.toLowerCase().includes('tiên hiệp'));
 
-  const startTimer = () => {
-    clearInterval(slideTimer.current);
-    slideTimer.current = setInterval(() => {
-      setAnimPhase('exit');
-      setTimeout(() => {
-        setSlideIdx(i => (i + 1) % Math.max(featuredBooks.length, 1));
-        setAnimPhase('enter');
-        setTimeout(() => setAnimPhase('idle'), 420);
-      }, 340);
-    }, 4500);
-  };
+  // Seed from books prop as soon as it arrives (instant render)
+  useEffect(() => {
+    if (books.length > 0 && featuredBooks.length === 0) {
+      setFeaturedBooks(sortByRating(books));
+    }
+  }, [books]);
+
+  // Override with server data (3-month filter + rating sort)
+  useEffect(() => {
+    api.getFeaturedBooks({ limit: 10 })
+      .then(data => {
+        const result = data.length > 0 ? data : sortByRating(books);
+        setFeaturedBooks(result);
+        setSlideIdx(0);
+        featuredLoadedRef.current = true;
+      })
+      .catch(() => {
+        if (books.length > 0) setFeaturedBooks(sortByRating(books));
+        featuredLoadedRef.current = true;
+      });
+  }, []);
 
   useEffect(() => {
     if (featuredBooks.length <= 1) return;
