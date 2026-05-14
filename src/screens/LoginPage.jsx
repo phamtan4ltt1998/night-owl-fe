@@ -56,10 +56,7 @@ export default function LoginPage({ onLogin }) {
             console.warn('[FB] email missing, fallback to facebook_id:', info.id);
           }
           api.facebookLogin({
-            email: info.email || null,
-            name: info.name,
-            picture: info.picture?.data?.url || null,
-            facebook_id: info.id || null,
+            access_token: accessToken,
           }).then((res) => {
             onLogin(
               {
